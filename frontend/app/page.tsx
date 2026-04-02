@@ -12,23 +12,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useRef, useEffect } from "react";
 import { NewsletterEditor, NewsletterEditorRef } from "@/components/editor/NewsletterEditor";
 import { Loader2, RefreshCw, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
-const extractCleanHtml = (raw: string): string => {
-  // 1. ```html ... ``` 블록 추출
-  const mdMatch = raw.match(/```html\s*([\s\S]*?)\s*```/);
-  if (mdMatch) {
-    return mdMatch[1].trim();
-  }
-  
-  // 2. 첫 번째 HTML 태그부터 마지막 태그까지 추출
-  const tagMatch = raw.match(/<[a-z][\s\S]*>/i);
-  if (tagMatch) {
-    return tagMatch[0].trim();
-  }
-  
-  return "";
-};
 import { toast } from "sonner";
+
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+};
 
 interface ChatMessage {
   id: string;
@@ -247,7 +240,7 @@ export default function Home() {
     setEditInstruction("");
     
     // 사용자 메시지 추가
-    setChatHistory(prev => [...prev, { id: Date.now().toString(), role: "user", content: currentInstruction }]);
+    setChatHistory(prev => [...prev, { id: generateId(), role: "user", content: currentInstruction }]);
     setIsEditing(true);
 
     const range = editorRef.current?.getSelectionRange();
@@ -259,7 +252,29 @@ export default function Home() {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/api/chat", {
+      // 1. 임시 응답 메시지 생성 (스트리밍으로 업데이트할 대상)
+      const tempId = generateId();
+      setChatHistory(prev => [...prev, {
+        id: tempId,
+        role: "assistant",
+        content: "", // 스트리밍으로 채워질 내용
+        type: "text"
+      }]);
+
+      const mappedHistory = chatHistory.map(msg => {
+        let mappedContent = msg.content;
+        if (msg.type === "full_draft" && msg.draft_content) {
+          mappedContent = `${msg.content}\n\n[생성했던 HTML 초안]\n${msg.draft_content}`;
+        } else if (msg.type === "suggestion" && msg.suggestion?.text) {
+          mappedContent = `${msg.content}\n\n[제안했던 텍스트]\n${msg.suggestion.text}`;
+        }
+        return {
+          role: msg.role,
+          content: mappedContent
+        };
+      });
+
+      const response = await fetch("http://localhost:8000/api/chat/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -267,56 +282,80 @@ export default function Home() {
         body: JSON.stringify({
           selected_text: hasSelection ? selectedTextContext : null,
           instruction: currentInstruction,
+          chat_history: mappedHistory,
         }),
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to process chat request");
+        throw new Error("Failed to process chat request");
       }
 
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      if (hasSelection && range) {
-        // AI 응답 제안 추가 (바로 교체하지 않음)
-        setChatHistory(prev => [...prev, { 
-          id: (Date.now() + 1).toString(), 
-          role: "assistant", 
-          content: "다음과 같이 수정해 보았습니다.",
-          type: "suggestion",
-          suggestion: {
-            text: data.reply,
-            range: range,
-            status: "pending"
-          }
-        }]);
-      } else {
-        // HTML 태그가 포함되어 있는지 확인 (간단한 휴리스틱)
-        const isHtmlDraft = /<[a-z][\s\S]*>/i.test(data.reply);
-        
-        if (isHtmlDraft) {
-          setChatHistory(prev => [...prev, {
-            id: (Date.now() + 1).toString(),
-            role: "assistant",
-            content: "요청하신 내용으로 초안을 작성했습니다.",
-            type: "full_draft",
-            draft_content: data.reply,
-            draft_status: "pending"
-          }]);
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let done = false;
+      let accumulatedText = "";
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: true });
+        accumulatedText += chunkValue;
+
+        // XML 태그 추출을 시도하며 렌더링
+        let displayChat = accumulatedText;
+        let displayHtml = "";
+
+        const chatMatch = accumulatedText.match(/<chat>([\s\S]*?)<\/chat>/);
+        const htmlMatch = accumulatedText.match(/<html_draft>([\s\S]*?)<\/html_draft>/);
+        const partialChatMatch = accumulatedText.match(/<chat>([\s\S]*?)$/); // 닫히지 않은 태그
+
+        if (chatMatch) {
+            displayChat = chatMatch[1].trim();
+        } else if (partialChatMatch) {
+            displayChat = partialChatMatch[1];
         } else {
-          // 일반 답변 추가
-          setChatHistory(prev => [...prev, {
-            id: (Date.now() + 1).toString(),
-            role: "assistant",
-            content: data.reply,
-            type: "text"
-          }]);
+            // 태그가 없으면 전체를 채팅으로 간주
+            displayChat = accumulatedText.replace(/<[^>]*>?/gm, ''); // 태그 조각 제거
         }
+        
+        if (htmlMatch) {
+            displayHtml = htmlMatch[1].trim();
+        }
+
+        setChatHistory(prev => prev.map(msg => {
+          if (msg.id === tempId) {
+            // 아직 스트리밍 중이거나 완료되었고, HTML이 발견되었다면 상태 업데이트
+            if (htmlMatch) {
+              if (hasSelection && range) {
+                  return {
+                      ...msg,
+                      content: displayChat || "다음과 같이 수정해 보았습니다.",
+                      type: "suggestion",
+                      suggestion: {
+                          text: displayHtml || displayChat,
+                          range: range,
+                          status: "pending"
+                      }
+                  };
+              } else {
+                  return {
+                      ...msg,
+                      content: displayChat || "요청하신 내용으로 초안을 작성했습니다.",
+                      type: "full_draft",
+                      draft_content: displayHtml,
+                      draft_status: "pending"
+                  };
+              }
+            }
+            // 아직 HTML이 없으면 채팅 내용만 업데이트
+            return { ...msg, content: displayChat };
+          }
+          return msg;
+        }));
       }
+
     } catch (error: any) {
       console.error("Error processing chat request:", error);
       toast.error(`요청 처리 중 오류가 발생했습니다: ${error.message}`);
@@ -338,7 +377,7 @@ export default function Home() {
       }
       return msg;
     }));
-    setChatHistory(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: "✅ 에디터에 적용되었습니다." }]);
+    setChatHistory(prev => [...prev, { id: generateId(), role: "assistant", content: "✅ 에디터에 적용되었습니다." }]);
   };
 
   const handleReject = (msgId: string) => {
@@ -353,24 +392,18 @@ export default function Home() {
       }
       return msg;
     }));
-    setChatHistory(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: "❌ 수정 제안을 거절했습니다." }]);
+    setChatHistory(prev => [...prev, { id: generateId(), role: "assistant", content: "❌ 수정 제안을 거절했습니다." }]);
   };
 
   const handleApplyFullDraft = (msgId: string) => {
     setChatHistory(prev => {
       const msg = prev.find(m => m.id === msgId);
       if (msg && msg.type === "full_draft" && msg.draft_content) {
-        const cleanHtml = extractCleanHtml(msg.draft_content);
-        if (cleanHtml) {
-          setEditorContent(cleanHtml);
-          toast.success("초안이 에디터에 적용되었습니다.");
-          return prev.map(m => m.id === msgId ? { ...m, draft_status: "accepted" as const } : m).concat({
-            id: Date.now().toString(), role: "assistant", content: "✅ 에디터 전체 내용이 교체되었습니다."
-          });
-        } else {
-          toast.error("적용할 수 있는 뉴스레터 형식이 발견되지 않았습니다.");
-          return prev;
-        }
+        setEditorContent(msg.draft_content);
+        toast.success("초안이 에디터에 적용되었습니다.");
+        return prev.map(m => m.id === msgId ? { ...m, draft_status: "accepted" as const } : m).concat({
+          id: generateId(), role: "assistant", content: "✅ 에디터 전체 내용이 교체되었습니다."
+        });
       }
       return prev;
     });
@@ -573,7 +606,11 @@ export default function Home() {
               msg.role === "assistant" ? (
                 <div key={msg.id} className="flex flex-col gap-2 max-w-[88%] text-sm">
                   <div className="bg-white p-3.5 rounded-2xl rounded-tl-sm shadow-sm border border-slate-100 text-slate-800">
-                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    <div className="prose prose-sm prose-slate max-w-none [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
+                      <ReactMarkdown>
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                   {msg.type === "suggestion" && msg.suggestion && (
                     <div className="mt-1 space-y-3 bg-primary/5 p-3 rounded-xl border border-primary/20 border-dashed">
@@ -603,7 +640,7 @@ export default function Home() {
                   )}
                   {msg.type === "full_draft" && msg.draft_content && (
                     <div className="mt-1 space-y-3 bg-primary/5 p-3 rounded-xl border border-primary/20 border-dashed">
-                      <div className="bg-white/80 p-3 rounded-lg border border-primary/10 text-slate-700 whitespace-pre-wrap shadow-sm max-h-[200px] overflow-y-auto">
+                      <div className="bg-white/80 p-3 rounded-lg border border-primary/10 text-slate-700 whitespace-pre-wrap shadow-sm max-h-[200px] overflow-y-auto prose prose-sm prose-slate max-w-none">
                         <div dangerouslySetInnerHTML={{ __html: msg.draft_content }} />
                       </div>
                       <div className="flex gap-2 w-full">
@@ -632,7 +669,11 @@ export default function Home() {
               ) : (
                 <div key={msg.id} className="flex flex-col gap-2 max-w-[88%] self-end ml-auto text-sm">
                   <div className="bg-primary text-primary-foreground p-3.5 rounded-2xl rounded-tr-sm shadow-sm">
-                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    <div className="prose prose-sm prose-invert max-w-none [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
+                      <ReactMarkdown>
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               )
