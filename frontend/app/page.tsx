@@ -34,6 +34,7 @@ export default function Home() {
   ]);
   const [editInstruction, setEditInstruction] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedTextContext, setSelectedTextContext] = useState("");
   const editorRef = useRef<NewsletterEditorRef>(null);
 
   const handleGenerate = async () => {
@@ -73,23 +74,8 @@ export default function Home() {
     }
   };
 
-  const handleEditRequest = async () => {
+  const handleChatRequest = async () => {
     if (!editInstruction.trim()) return;
-
-    const range = editorRef.current?.getSelectionRange();
-    if (!range) {
-      alert("에디터에서 수정할 텍스트를 먼저 드래그해 주세요.");
-      return;
-    }
-
-    const selectedText = editorRef.current?.getSelectedText();
-    if (!selectedText) {
-      alert("에디터에서 수정할 텍스트를 먼저 드래그해 주세요.");
-      return;
-    }
-
-    // 수정 중인 영역 하이라이트 표시
-    editorRef.current?.setHighlightAtRange(range.from, range.to);
 
     const currentInstruction = editInstruction;
     setEditInstruction("");
@@ -98,20 +84,28 @@ export default function Home() {
     setChatHistory(prev => [...prev, { id: Date.now().toString(), role: "user", content: currentInstruction }]);
     setIsEditing(true);
 
+    const range = editorRef.current?.getSelectionRange();
+    const hasSelection = !!selectedTextContext && !!range;
+
+    if (hasSelection && range) {
+      // 수정 중인 영역 하이라이트 표시
+      editorRef.current?.setHighlightAtRange(range.from, range.to);
+    }
+
     try {
-      const response = await fetch("http://localhost:8000/api/edit", {
+      const response = await fetch("http://localhost:8000/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          selected_text: selectedText,
+          selected_text: hasSelection ? selectedTextContext : null,
           instruction: currentInstruction,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to edit text");
+        throw new Error("Failed to process chat request");
       }
 
       const data = await response.json();
@@ -120,23 +114,35 @@ export default function Home() {
         throw new Error(data.error);
       }
       
-      // AI 응답 제안 추가 (바로 교체하지 않음)
-      setChatHistory(prev => [...prev, { 
-        id: (Date.now() + 1).toString(), 
-        role: "assistant", 
-        content: "다음과 같이 수정해 보았습니다.",
-        type: "suggestion",
-        suggestion: {
-          text: data.edited_text,
-          range: range,
-          status: "pending"
-        }
-      }]);
+      if (hasSelection && range) {
+        // AI 응답 제안 추가 (바로 교체하지 않음)
+        setChatHistory(prev => [...prev, { 
+          id: (Date.now() + 1).toString(), 
+          role: "assistant", 
+          content: "다음과 같이 수정해 보았습니다.",
+          type: "suggestion",
+          suggestion: {
+            text: data.reply,
+            range: range,
+            status: "pending"
+          }
+        }]);
+      } else {
+        // 일반 답변 추가
+        setChatHistory(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: data.reply,
+          type: "text"
+        }]);
+      }
     } catch (error) {
-      console.error("Error editing text:", error);
-      alert("텍스트 수정 중 오류가 발생했습니다.");
+      console.error("Error processing chat request:", error);
+      alert("요청 처리 중 오류가 발생했습니다.");
       // 에러 발생 시 하이라이트 제거
-      editorRef.current?.removeHighlightAtRange(range.from, range.to);
+      if (hasSelection && range) {
+        editorRef.current?.removeHighlightAtRange(range.from, range.to);
+      }
     } finally {
       setIsEditing(false);
     }
@@ -225,14 +231,28 @@ export default function Home() {
       {/* 2. 중앙 패널: 메인 에디터 */}
       <main className="flex-1 bg-muted/30 overflow-auto flex flex-col items-center p-8">
         <Card className="w-full max-w-4xl min-h-[800px] flex flex-col shadow-lg bg-white border-0 mt-4 mb-8 overflow-hidden">
-          <NewsletterEditor ref={editorRef} content={editorContent} />
+          <NewsletterEditor 
+            ref={editorRef} 
+            content={editorContent} 
+            onSelectionChange={setSelectedTextContext}
+          />
         </Card>
       </main>
 
       {/* 3. 우측 패널: AI 챗 어시스턴트 */}
       <aside className="flex flex-col w-[320px] flex-shrink-0 border-l bg-card">
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <h2 className="text-lg font-semibold tracking-tight">AI 어시스턴트</h2>
+          <div className={`p-2 rounded text-xs font-medium ${selectedTextContext ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+            {selectedTextContext ? (
+              <>
+                <div className="mb-1">✏️ [선택 부분 수정 모드]</div>
+                <div className="line-clamp-2 italic opacity-80">"{selectedTextContext}"</div>
+              </>
+            ) : (
+              <div>💡 [아이디에이션 모드] 뉴스레터 기획이나 아이디어를 물어보세요.</div>
+            )}
+          </div>
         </div>
         <Separator />
         
@@ -241,7 +261,7 @@ export default function Home() {
             {chatHistory.map((msg) => (
               msg.role === "assistant" ? (
                 <div key={msg.id} className="flex flex-col gap-2 bg-muted p-3 rounded-lg rounded-tl-none max-w-[85%] text-sm">
-                  <p>{msg.content}</p>
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
                   {msg.type === "suggestion" && msg.suggestion && (
                     <div className="mt-2 space-y-3">
                       <div className="bg-background p-2 rounded border text-muted-foreground whitespace-pre-wrap">
@@ -269,7 +289,7 @@ export default function Home() {
                 </div>
               ) : (
                 <div key={msg.id} className="flex flex-col gap-2 bg-primary text-primary-foreground p-3 rounded-lg rounded-tr-none max-w-[85%] self-end ml-auto text-sm">
-                  <p>{msg.content}</p>
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
               )
             ))}
@@ -278,7 +298,7 @@ export default function Home() {
 
         <div className="p-4 border-t bg-background space-y-3">
           <Textarea 
-            placeholder="수정 사항을 프롬프트로 입력하세요..." 
+            placeholder={selectedTextContext ? "수정 사항을 프롬프트로 입력하세요..." : "질문이나 아이디어를 입력하세요..."}
             className="min-h-[80px] resize-none"
             value={editInstruction}
             onChange={(e) => setEditInstruction(e.target.value)}
@@ -286,16 +306,16 @@ export default function Home() {
           <Button 
             className="w-full" 
             variant="secondary"
-            onClick={handleEditRequest}
-            disabled={isEditing}
+            onClick={handleChatRequest}
+            disabled={isEditing || !editInstruction.trim()}
           >
             {isEditing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                수정 중...
+                처리 중...
               </>
             ) : (
-              "수정 요청"
+              "보내기"
             )}
           </Button>
         </div>

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -27,8 +28,8 @@ class GenerateRequest(BaseModel):
     topic: str
     article_count: int
 
-class EditRequest(BaseModel):
-    selected_text: str
+class ChatRequest(BaseModel):
+    selected_text: Optional[str] = None
     instruction: str
 
 def crawl_articles(topic: str, count: int) -> list:
@@ -126,13 +127,17 @@ async def generate_newsletter(request: GenerateRequest):
     
     return {"html": html_content}
 
-@app.post("/api/edit")
-async def edit_text(request: EditRequest):
-    print(f"텍스트 수정 요청: {request.instruction}")
+@app.post("/api/chat")
+async def chat_endpoint(request: ChatRequest):
+    print(f"채팅/수정 요청: {request.instruction}")
     
     client = genai.Client()
     
-    prompt = f"""원본 텍스트: [{request.selected_text}], 요청사항: [{request.instruction}]. 이 요청에 맞게 원본 텍스트를 수정해 줘. 다른 인사말이나 부연 설명 없이 오직 수정된 텍스트 결과물(필요시 HTML 태그 포함)만 반환해."""
+    if request.selected_text:
+        prompt = f"""원본 텍스트: [{request.selected_text}], 요청사항: [{request.instruction}]. 이 요청에 맞게 원본 텍스트를 수정해 줘. 다른 인사말이나 부연 설명 없이 오직 수정된 텍스트 결과물(필요시 HTML 태그 포함)만 반환해."""
+    else:
+        prompt = f"""너는 유능한 뉴스레터 기획자야. 사용자의 질문이나 아이디어 제안에 대해 친절하게 답하고, 필요하다면 뉴스레터 구성을 제안해 줘.
+사용자: {request.instruction}"""
     
     try:
         response = client.models.generate_content(
@@ -149,10 +154,10 @@ async def edit_text(request: EditRequest):
         if result.endswith("```"):
             result = result[:-3]
             
-        return {"edited_text": result.strip()}
+        return {"reply": result.strip()}
     except Exception as e:
         print(f"Gemini API 오류: {e}")
-        return {"error": "수정 중 오류가 발생했습니다.", "edited_text": ""}
+        return {"error": "처리 중 오류가 발생했습니다.", "reply": ""}
 
 if __name__ == "__main__":
     import uvicorn
