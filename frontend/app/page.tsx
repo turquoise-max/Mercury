@@ -7,9 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useRef, useEffect } from "react";
 import { NewsletterEditor, NewsletterEditorRef } from "@/components/editor/NewsletterEditor";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 
 interface ChatMessage {
   id: string;
@@ -23,9 +24,18 @@ interface ChatMessage {
   };
 }
 
+interface Article {
+  title: string;
+  url: string;
+  content: string;
+}
+
 export default function Home() {
   const [topic, setTopic] = useState("");
   const [articleCount, setArticleCount] = useState(5);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<Article[]>([]);
+  const [selectedArticles, setSelectedArticles] = useState<Article[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [editorContent, setEditorContent] = useState("<p>이곳에 AI가 작성한 뉴스레터 초안이 표시됩니다.</p>");
   
@@ -36,6 +46,7 @@ export default function Home() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTextContext, setSelectedTextContext] = useState("");
   const editorRef = useRef<NewsletterEditorRef>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -48,6 +59,8 @@ export default function Home() {
           const parsed = JSON.parse(savedData);
           if (parsed.topic !== undefined) setTopic(parsed.topic);
           if (parsed.articleCount !== undefined) setArticleCount(parsed.articleCount);
+          if (parsed.searchResults !== undefined) setSearchResults(parsed.searchResults);
+          if (parsed.selectedArticles !== undefined) setSelectedArticles(parsed.selectedArticles);
           if (parsed.editorContent !== undefined) setEditorContent(parsed.editorContent);
           if (parsed.chatHistory !== undefined) setChatHistory(parsed.chatHistory);
         } catch (e) {
@@ -61,12 +74,20 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatHistory]);
+
+  useEffect(() => {
     if (isInitialLoad) return;
 
     const timer = setTimeout(() => {
       const saveData = {
         topic,
         articleCount,
+        searchResults,
+        selectedArticles,
         editorContent,
         chatHistory
       };
@@ -83,11 +104,58 @@ export default function Home() {
     if (window.confirm("모든 작업 내용이 삭제됩니다. 새 작업을 시작하시겠습니까?")) {
       setTopic("");
       setArticleCount(5);
+      setSearchResults([]);
+      setSelectedArticles([]);
       setEditorContent("<p>이곳에 AI가 작성한 뉴스레터 초안이 표시됩니다.</p>");
       setChatHistory([{ id: "init-msg", role: "assistant", content: "안녕하세요! 뉴스레터 생성을 도와드릴 AI 어시스턴트입니다. 어떤 주제로 뉴스레터를 작성해 드릴까요?" }]);
       setLastSavedTime(null);
       localStorage.removeItem('newsletter-current-work');
     }
+  };
+
+  const handleSearch = async () => {
+    if (!topic.trim()) {
+      alert("검색할 주제를 입력해주세요.");
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch("http://localhost:8000/api/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          topic,
+          article_count: articleCount,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to search articles");
+      }
+
+      const data = await response.json();
+      setSearchResults(data.articles);
+      setSelectedArticles([]);
+    } catch (error) {
+      console.error("Error searching articles:", error);
+      alert("기사 검색 중 오류가 발생했습니다.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const toggleArticleSelection = (article: Article) => {
+    setSelectedArticles(prev => {
+      const isSelected = prev.some(a => a.url === article.url);
+      if (isSelected) {
+        return prev.filter(a => a.url !== article.url);
+      } else {
+        return [...prev, article];
+      }
+    });
   };
 
   const handleGenerate = async () => {
@@ -96,9 +164,11 @@ export default function Home() {
       return;
     }
 
-    console.log("뉴스레터 주제:", topic);
-    console.log("아티클 개수:", articleCount);
-    
+    if (selectedArticles.length === 0) {
+      alert("뉴스레터에 포함할 기사를 선택해주세요.");
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
@@ -109,7 +179,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           topic,
-          article_count: articleCount,
+          articles: selectedArticles,
         }),
       });
 
@@ -227,63 +297,133 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      {/* 1. 좌측 패널: 크롤링 설정 */}
-      <aside className="flex flex-col w-[300px] flex-shrink-0 border-r p-6 relative">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold tracking-tight">크롤링 설정</h2>
-          <Button variant="ghost" size="sm" onClick={handleReset}>
-            새 작업 시작
-          </Button>
-        </div>
-        <div className="flex-1 space-y-6">
-          <div>
+      {/* 1. 좌측 패널: 크롤링 및 검색 설정 */}
+      <aside className="flex flex-col w-[320px] flex-shrink-0 border-r bg-background relative z-10">
+        {/* 고정 상단 영역 */}
+        <div className="p-5 border-b space-y-5">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-bold tracking-tight">기사 검색 및 선택</h2>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={handleReset} title="새 작업 시작">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                뉴스레터 주제
-              </label>
+              <label className="text-sm font-medium text-muted-foreground">뉴스레터 주제</label>
               <Input 
                 placeholder="예: 인공지능 최신 동향" 
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
+                className="h-9"
               />
             </div>
-          </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                수집할 아티클 개수
-              </label>
-              <span className="text-sm text-muted-foreground font-mono">{articleCount}개</span>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-muted-foreground">검색 개수</label>
+                <span className="text-xs font-mono">{articleCount}개</span>
+              </div>
+              <Slider 
+                defaultValue={[5]} 
+                max={10} 
+                min={1} 
+                step={1} 
+                value={[articleCount]}
+                onValueChange={(vals) => setArticleCount(vals[0])}
+                className="py-1"
+              />
             </div>
-            <Slider 
-              defaultValue={[5]} 
-              max={10} 
-              min={1} 
-              step={1} 
-              value={[articleCount]}
-              onValueChange={(vals) => setArticleCount(vals[0])}
-            />
+
+            <Button 
+              className="w-full" 
+              onClick={handleSearch}
+              disabled={isSearching}
+            >
+              {isSearching ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  검색 중...
+                </>
+              ) : (
+                "기사 검색하기"
+              )}
+            </Button>
           </div>
         </div>
 
-        <div className="pt-6">
-          <Button 
-            className="w-full" 
-            size="lg" 
-            onClick={handleGenerate}
-            disabled={isGenerating}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                생성 중...
-              </>
-            ) : (
-              "뉴스레터 생성하기"
+        {/* 스크롤 가능한 검색 결과 영역 */}
+        <div className="flex-1 flex flex-col min-h-0 bg-muted/10">
+          <div className="px-5 py-3 flex justify-between items-center bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b sticky top-0 z-10">
+            <h3 className="font-semibold text-sm">검색 결과</h3>
+            {selectedArticles.length > 0 && (
+              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                {selectedArticles.length}개 선택됨
+              </span>
             )}
-          </Button>
+          </div>
+          
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-3 pb-4">
+              {searchResults.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    주제를 입력하고 검색해 주세요.
+                  </p>
+                </div>
+              ) : (
+                searchResults.map((article, index) => {
+                  const isSelected = selectedArticles.some(a => a.url === article.url);
+                  return (
+                    <Card 
+                      key={index} 
+                      className={`overflow-hidden cursor-pointer transition-all hover:border-primary/50 ${isSelected ? 'border-primary ring-1 ring-primary bg-primary/5' : ''}`}
+                      onClick={() => toggleArticleSelection(article)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-start gap-3">
+                          <Checkbox 
+                            checked={isSelected}
+                            className="mt-0.5 pointer-events-none"
+                          />
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <p className="text-sm font-medium leading-snug line-clamp-2 text-foreground">
+                              {article.title}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {article.url}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
         </div>
+
+        {/* 하단 고정 뉴스레터 생성 버튼 (조건부 노출) */}
+        {selectedArticles.length > 0 && (
+          <div className="p-4 border-t bg-background shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.1)] z-20">
+            <Button 
+              className="w-full font-bold shadow-md" 
+              size="lg" 
+              onClick={handleGenerate}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  생성 중...
+                </>
+              ) : (
+                `선택한 ${selectedArticles.length}개의 기사로 생성하기`
+              )}
+            </Button>
+          </div>
+        )}
       </aside>
 
       {/* 2. 중앙 패널: 메인 에디터 */}
@@ -305,8 +445,8 @@ export default function Home() {
       </main>
 
       {/* 3. 우측 패널: AI 챗 어시스턴트 */}
-      <aside className="flex flex-col w-[320px] flex-shrink-0 border-l bg-card">
-        <div className="p-4 space-y-2">
+      <aside className="flex flex-col w-[320px] flex-shrink-0 border-l bg-card h-full">
+        <div className="flex-shrink-0 p-4 space-y-2">
           <h2 className="text-lg font-semibold tracking-tight">AI 어시스턴트</h2>
           <div className={`p-2 rounded text-xs font-medium ${selectedTextContext ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
             {selectedTextContext ? (
@@ -321,7 +461,7 @@ export default function Home() {
         </div>
         <Separator />
         
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 min-h-0 p-4">
           <div className="space-y-4">
             {chatHistory.map((msg) => (
               msg.role === "assistant" ? (
@@ -358,10 +498,11 @@ export default function Home() {
                 </div>
               )
             ))}
+            <div ref={chatScrollRef} />
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t bg-background space-y-3">
+        <div className="flex-shrink-0 p-4 border-t bg-background space-y-3">
           <Textarea 
             placeholder={selectedTextContext ? "수정 사항을 프롬프트로 입력하세요..." : "질문이나 아이디어를 입력하세요..."}
             className="min-h-[80px] resize-none"
