@@ -15,6 +15,11 @@ import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import { toast } from "sonner";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -479,13 +484,13 @@ export default function Home() {
         {/* 스크롤 가능한 검색 결과 영역 */}
         <div className="flex-1 min-h-0 bg-transparent w-full overflow-hidden">
           <ScrollArea className="h-full w-full">
-            <div className="p-4 pr-5 space-y-3 w-full max-w-full">
+            <div className="p-4 pr-6 space-y-3">
               {isSearching ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <Card key={`skel-${i}`} className="w-full max-w-full overflow-hidden border-slate-200 rounded-lg">
+                  <Card key={`skel-${i}`} className="overflow-hidden border-slate-200 rounded-lg">
                     <CardContent className="py-1.5 px-3">
-                      <div className="flex items-start gap-2 w-full">
-                        <Skeleton className="h-4 w-4 rounded mt-0.5" />
+                      <div className="flex items-center gap-2 w-full">
+                        <Skeleton className="h-4 w-4 rounded" />
                         <div className="space-y-1.5 flex-1">
                           <Skeleton className="h-4 w-[90%]" />
                           <Skeleton className="h-4 w-[70%]" />
@@ -506,14 +511,14 @@ export default function Home() {
                   return (
                     <Card 
                       key={index} 
-                      className={`w-full max-w-full overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md rounded-lg border-slate-200 ${isSelected ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm' : 'hover:border-slate-300 bg-white'}`}
+                      className={`overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md rounded-lg border-slate-200 ${isSelected ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm' : 'hover:border-slate-300 bg-white'}`}
                       onClick={() => toggleArticleSelection(article)}
                     >
                       <CardContent className="py-1.5 px-3">
-                        <div className="flex items-start gap-2 w-full">
+                        <div className="flex items-center gap-2 w-full">
                           <Checkbox 
                             checked={isSelected}
-                            className="mt-0.5 pointer-events-none flex-shrink-0"
+                            className="pointer-events-none flex-shrink-0"
                           />
                           <div className="space-y-0.5 flex-1 min-w-0 overflow-hidden">
                             <p className="text-sm font-medium leading-tight text-foreground break-words whitespace-normal">
@@ -555,44 +560,49 @@ export default function Home() {
         )}
       </aside>
 
-      {/* 2. 중앙 패널: 메인 에디터 */}
-      <main className="flex-1 overflow-auto flex flex-col items-center p-8 lg:p-12 relative">
-        <Card className="w-full max-w-[850px] min-h-[900px] flex flex-col shadow-xl rounded-2xl bg-white border border-slate-200/60 mb-12 overflow-hidden ring-1 ring-black/5 relative">
-          {isGenerating ? (
-            <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center">
-              <div className="w-full max-w-2xl px-12 space-y-6">
-                <div className="flex items-center gap-3 justify-center mb-8 text-primary">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                  <h3 className="text-xl font-bold">{generationStatus}</h3>
-                </div>
-                <div className="space-y-4">
-                  <Skeleton className="h-10 w-3/4 mx-auto" />
-                  <div className="pt-6 space-y-3">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-[95%]" />
-                    <Skeleton className="h-4 w-[90%]" />
-                    <Skeleton className="h-4 w-[85%]" />
+      {/* 2 & 3. Resizable 중앙 패널 (메인 에디터) 및 우측 패널 (AI 챗 어시스턴트) */}
+      <ResizablePanelGroup direction="horizontal" autoSaveId="newsletter-layout" className="flex-1 w-full h-full overflow-hidden">
+        <ResizablePanel defaultSize={75} className="flex flex-col">
+          <main className="flex-1 overflow-hidden flex flex-col items-center py-6 px-8 lg:px-12 relative">
+            <Card className="w-full max-w-[850px] h-full min-h-0 flex flex-col shadow-xl rounded-2xl bg-white border border-slate-200/60 overflow-hidden ring-1 ring-black/5 relative pt-0">
+              {isGenerating ? (
+                <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                  <div className="w-full max-w-2xl px-12 space-y-6">
+                    <div className="flex items-center gap-3 justify-center mb-8 text-primary">
+                      <Loader2 className="w-8 h-8 animate-spin" />
+                      <h3 className="text-xl font-bold">{generationStatus}</h3>
+                    </div>
+                    <div className="space-y-4">
+                      <Skeleton className="h-10 w-3/4 mx-auto" />
+                      <div className="pt-6 space-y-3">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-[95%]" />
+                        <Skeleton className="h-4 w-[90%]" />
+                        <Skeleton className="h-4 w-[85%]" />
+                      </div>
+                      <div className="pt-6 space-y-3">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-[92%]" />
+                        <Skeleton className="h-4 w-[98%]" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="pt-6 space-y-3">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-[92%]" />
-                    <Skeleton className="h-4 w-[98%]" />
-                  </div>
                 </div>
-              </div>
-            </div>
-          ) : null}
-          <NewsletterEditor 
-            ref={editorRef} 
-            content={editorContent} 
-            onSelectionChange={setSelectedTextContext}
-          />
-        </Card>
-      </main>
+              ) : null}
+              <NewsletterEditor 
+                ref={editorRef} 
+                content={editorContent} 
+                onSelectionChange={setSelectedTextContext}
+              />
+            </Card>
+          </main>
+        </ResizablePanel>
 
-      {/* 3. 우측 패널: AI 챗 어시스턴트 */}
-      <aside className="flex flex-col w-[340px] flex-shrink-0 border-l border-slate-200 bg-slate-50 h-full relative z-10">
-        <div className="flex-shrink-0 p-5 space-y-3 bg-white border-b border-slate-100 shadow-sm z-10">
+        <ResizableHandle withHandle />
+
+        <ResizablePanel defaultSize={25} minSize={20} maxSize={40} className="flex flex-col bg-slate-50 relative z-10 border-l border-slate-200">
+          <aside className="flex flex-col h-full">
+            <div className="flex-shrink-0 p-5 space-y-3 bg-white border-b border-slate-100 shadow-sm z-10">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <h2 className="text-lg font-bold tracking-tight">AI 어시스턴트</h2>
@@ -723,7 +733,9 @@ export default function Home() {
             )}
           </Button>
         </div>
-      </aside>
+          </aside>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
