@@ -1,0 +1,12 @@
+# 백엔드 (Python)
+backend/venv/
+backend/__pycache__/
+backend/.env
+.env
+
+# 프론트엔드 (Node.js)
+frontend/node_modules/
+frontend/.next/
+
+# Mac OS 시스템 파일
+.DS_Store

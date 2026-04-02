@@ -1,0 +1,305 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { useState, useRef } from "react";
+import { NewsletterEditor, NewsletterEditorRef } from "@/components/editor/NewsletterEditor";
+import { Loader2 } from "lucide-react";
+
+interface ChatMessage {
+  id: string;
+  role: "assistant" | "user";
+  content: string;
+  type?: "text" | "suggestion";
+  suggestion?: {
+    text: string;
+    range: { from: number; to: number };
+    status: "pending" | "accepted" | "rejected";
+  };
+}
+
+export default function Home() {
+  const [topic, setTopic] = useState("");
+  const [articleCount, setArticleCount] = useState(5);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [editorContent, setEditorContent] = useState("<p>이곳에 AI가 작성한 뉴스레터 초안이 표시됩니다.</p>");
+  
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
+    { id: "init-msg", role: "assistant", content: "안녕하세요! 뉴스레터 생성을 도와드릴 AI 어시스턴트입니다. 어떤 주제로 뉴스레터를 작성해 드릴까요?" }
+  ]);
+  const [editInstruction, setEditInstruction] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const editorRef = useRef<NewsletterEditorRef>(null);
+
+  const handleGenerate = async () => {
+    if (!topic.trim()) {
+      alert("뉴스레터 주제를 입력해주세요.");
+      return;
+    }
+
+    console.log("뉴스레터 주제:", topic);
+    console.log("아티클 개수:", articleCount);
+    
+    setIsGenerating(true);
+    
+    try {
+      const response = await fetch("http://localhost:8000/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          topic,
+          article_count: articleCount,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate newsletter");
+      }
+
+      const data = await response.json();
+      setEditorContent(data.html);
+    } catch (error) {
+      console.error("Error generating newsletter:", error);
+      alert("뉴스레터 생성 중 오류가 발생했습니다.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleEditRequest = async () => {
+    if (!editInstruction.trim()) return;
+
+    const range = editorRef.current?.getSelectionRange();
+    if (!range) {
+      alert("에디터에서 수정할 텍스트를 먼저 드래그해 주세요.");
+      return;
+    }
+
+    const selectedText = editorRef.current?.getSelectedText();
+    if (!selectedText) {
+      alert("에디터에서 수정할 텍스트를 먼저 드래그해 주세요.");
+      return;
+    }
+
+    // 수정 중인 영역 하이라이트 표시
+    editorRef.current?.setHighlightAtRange(range.from, range.to);
+
+    const currentInstruction = editInstruction;
+    setEditInstruction("");
+    
+    // 사용자 메시지 추가
+    setChatHistory(prev => [...prev, { id: Date.now().toString(), role: "user", content: currentInstruction }]);
+    setIsEditing(true);
+
+    try {
+      const response = await fetch("http://localhost:8000/api/edit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          selected_text: selectedText,
+          instruction: currentInstruction,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to edit text");
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      // AI 응답 제안 추가 (바로 교체하지 않음)
+      setChatHistory(prev => [...prev, { 
+        id: (Date.now() + 1).toString(), 
+        role: "assistant", 
+        content: "다음과 같이 수정해 보았습니다.",
+        type: "suggestion",
+        suggestion: {
+          text: data.edited_text,
+          range: range,
+          status: "pending"
+        }
+      }]);
+    } catch (error) {
+      console.error("Error editing text:", error);
+      alert("텍스트 수정 중 오류가 발생했습니다.");
+      // 에러 발생 시 하이라이트 제거
+      editorRef.current?.removeHighlightAtRange(range.from, range.to);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleAccept = (msgId: string) => {
+    setChatHistory(prev => prev.map(msg => {
+      if (msg.id === msgId && msg.suggestion) {
+        const { range, text } = msg.suggestion;
+        editorRef.current?.replaceTextAtRange(range.from, range.to, text);
+        return { ...msg, suggestion: { ...msg.suggestion, status: "accepted" } };
+      }
+      return msg;
+    }));
+    setChatHistory(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: "✅ 에디터에 적용되었습니다." }]);
+  };
+
+  const handleReject = (msgId: string) => {
+    setChatHistory(prev => prev.map(msg => {
+      if (msg.id === msgId && msg.suggestion) {
+        const { range } = msg.suggestion;
+        editorRef.current?.removeHighlightAtRange(range.from, range.to);
+        return { ...msg, suggestion: { ...msg.suggestion, status: "rejected" } };
+      }
+      return msg;
+    }));
+    setChatHistory(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: "❌ 수정 제안을 거절했습니다." }]);
+  };
+
+  return (
+    <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* 1. 좌측 패널: 크롤링 설정 */}
+      <aside className="flex flex-col w-[300px] flex-shrink-0 border-r p-6">
+        <div className="flex-1 space-y-6">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight mb-4">크롤링 설정</h2>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                뉴스레터 주제
+              </label>
+              <Input 
+                placeholder="예: 인공지능 최신 동향" 
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                수집할 아티클 개수
+              </label>
+              <span className="text-sm text-muted-foreground font-mono">{articleCount}개</span>
+            </div>
+            <Slider 
+              defaultValue={[5]} 
+              max={10} 
+              min={1} 
+              step={1} 
+              value={[articleCount]}
+              onValueChange={(vals) => setArticleCount(vals[0])}
+            />
+          </div>
+        </div>
+
+        <div className="pt-6">
+          <Button 
+            className="w-full" 
+            size="lg" 
+            onClick={handleGenerate}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                생성 중...
+              </>
+            ) : (
+              "뉴스레터 생성하기"
+            )}
+          </Button>
+        </div>
+      </aside>
+
+      {/* 2. 중앙 패널: 메인 에디터 */}
+      <main className="flex-1 bg-muted/30 overflow-auto flex flex-col items-center p-8">
+        <Card className="w-full max-w-4xl min-h-[800px] flex flex-col shadow-lg bg-white border-0 mt-4 mb-8 overflow-hidden">
+          <NewsletterEditor ref={editorRef} content={editorContent} />
+        </Card>
+      </main>
+
+      {/* 3. 우측 패널: AI 챗 어시스턴트 */}
+      <aside className="flex flex-col w-[320px] flex-shrink-0 border-l bg-card">
+        <div className="p-4">
+          <h2 className="text-lg font-semibold tracking-tight">AI 어시스턴트</h2>
+        </div>
+        <Separator />
+        
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4">
+            {chatHistory.map((msg) => (
+              msg.role === "assistant" ? (
+                <div key={msg.id} className="flex flex-col gap-2 bg-muted p-3 rounded-lg rounded-tl-none max-w-[85%] text-sm">
+                  <p>{msg.content}</p>
+                  {msg.type === "suggestion" && msg.suggestion && (
+                    <div className="mt-2 space-y-3">
+                      <div className="bg-background p-2 rounded border text-muted-foreground whitespace-pre-wrap">
+                        {msg.suggestion.text}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleAccept(msg.id)}
+                          disabled={msg.suggestion.status !== "pending"}
+                        >
+                          적용하기
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => handleReject(msg.id)}
+                          disabled={msg.suggestion.status !== "pending"}
+                        >
+                          거절
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div key={msg.id} className="flex flex-col gap-2 bg-primary text-primary-foreground p-3 rounded-lg rounded-tr-none max-w-[85%] self-end ml-auto text-sm">
+                  <p>{msg.content}</p>
+                </div>
+              )
+            ))}
+          </div>
+        </ScrollArea>
+
+        <div className="p-4 border-t bg-background space-y-3">
+          <Textarea 
+            placeholder="수정 사항을 프롬프트로 입력하세요..." 
+            className="min-h-[80px] resize-none"
+            value={editInstruction}
+            onChange={(e) => setEditInstruction(e.target.value)}
+          />
+          <Button 
+            className="w-full" 
+            variant="secondary"
+            onClick={handleEditRequest}
+            disabled={isEditing}
+          >
+            {isEditing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                수정 중...
+              </>
+            ) : (
+              "수정 요청"
+            )}
+          </Button>
+        </div>
+      </aside>
+    </div>
+  );
+}
