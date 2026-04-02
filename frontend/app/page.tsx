@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { NewsletterEditor, NewsletterEditorRef } from "@/components/editor/NewsletterEditor";
 import { Loader2 } from "lucide-react";
 
@@ -36,6 +36,59 @@ export default function Home() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTextContext, setSelectedTextContext] = useState("");
   const editorRef = useRef<NewsletterEditorRef>(null);
+
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  useEffect(() => {
+    const savedData = localStorage.getItem('newsletter-current-work');
+    if (savedData) {
+      if (window.confirm("이전에 작업하던 내용이 있습니다. 복구하시겠습니까?")) {
+        try {
+          const parsed = JSON.parse(savedData);
+          if (parsed.topic !== undefined) setTopic(parsed.topic);
+          if (parsed.articleCount !== undefined) setArticleCount(parsed.articleCount);
+          if (parsed.editorContent !== undefined) setEditorContent(parsed.editorContent);
+          if (parsed.chatHistory !== undefined) setChatHistory(parsed.chatHistory);
+        } catch (e) {
+          console.error("Failed to parse saved data", e);
+        }
+      } else {
+        localStorage.removeItem('newsletter-current-work');
+      }
+    }
+    setIsInitialLoad(false);
+  }, []);
+
+  useEffect(() => {
+    if (isInitialLoad) return;
+
+    const timer = setTimeout(() => {
+      const saveData = {
+        topic,
+        articleCount,
+        editorContent,
+        chatHistory
+      };
+      localStorage.setItem('newsletter-current-work', JSON.stringify(saveData));
+      
+      const now = new Date();
+      setLastSavedTime(now.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [topic, articleCount, editorContent, chatHistory, isInitialLoad]);
+
+  const handleReset = () => {
+    if (window.confirm("모든 작업 내용이 삭제됩니다. 새 작업을 시작하시겠습니까?")) {
+      setTopic("");
+      setArticleCount(5);
+      setEditorContent("<p>이곳에 AI가 작성한 뉴스레터 초안이 표시됩니다.</p>");
+      setChatHistory([{ id: "init-msg", role: "assistant", content: "안녕하세요! 뉴스레터 생성을 도와드릴 AI 어시스턴트입니다. 어떤 주제로 뉴스레터를 작성해 드릴까요?" }]);
+      setLastSavedTime(null);
+      localStorage.removeItem('newsletter-current-work');
+    }
+  };
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -175,10 +228,15 @@ export default function Home() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* 1. 좌측 패널: 크롤링 설정 */}
-      <aside className="flex flex-col w-[300px] flex-shrink-0 border-r p-6">
+      <aside className="flex flex-col w-[300px] flex-shrink-0 border-r p-6 relative">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold tracking-tight">크롤링 설정</h2>
+          <Button variant="ghost" size="sm" onClick={handleReset}>
+            새 작업 시작
+          </Button>
+        </div>
         <div className="flex-1 space-y-6">
           <div>
-            <h2 className="text-xl font-bold tracking-tight mb-4">크롤링 설정</h2>
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 뉴스레터 주제
@@ -229,8 +287,15 @@ export default function Home() {
       </aside>
 
       {/* 2. 중앙 패널: 메인 에디터 */}
-      <main className="flex-1 bg-muted/30 overflow-auto flex flex-col items-center p-8">
-        <Card className="w-full max-w-4xl min-h-[800px] flex flex-col shadow-lg bg-white border-0 mt-4 mb-8 overflow-hidden">
+      <main className="flex-1 bg-muted/30 overflow-auto flex flex-col items-center p-8 relative">
+        <div className="w-full max-w-4xl flex justify-end mb-2">
+          {lastSavedTime && (
+            <span className="text-xs text-muted-foreground">
+              ✨ 마지막 저장: {lastSavedTime}
+            </span>
+          )}
+        </div>
+        <Card className="w-full max-w-4xl min-h-[800px] flex flex-col shadow-lg bg-white border-0 mb-8 overflow-hidden">
           <NewsletterEditor 
             ref={editorRef} 
             content={editorContent} 
