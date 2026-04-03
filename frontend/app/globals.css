@@ -142,25 +142,153 @@
 
 /* 2. 소프트 테마 (theme-soft) */
 .theme-soft .prose h2 {
-  @apply bg-slate-100 text-slate-800 px-4 py-2.5 rounded-2xl border-none font-bold;
-}
-.theme-soft .prose h3 {
-  @apply relative inline-block z-10 after:content-[''] after:absolute after:bottom-1 after:left-0 after:w-full after:h-2.5 after:bg-yellow-200/60 after:-z-10;
+  @apply bg-indigo-100 text-indigo-900 rounded-full inline-block px-5 py-2 font-bold;
 }
 .theme-soft .prose blockquote {
-  @apply bg-blue-50 text-blue-900 border-none px-5 py-4 rounded-2xl not-italic font-medium;
+  @apply bg-white rounded-2xl shadow-sm border-none px-5 py-4 text-slate-700 not-italic;
 }
 .theme-soft .prose hr {
-  @apply border-dashed border-2 border-slate-200 my-8;
+  @apply border-0 border-dotted border-t-4 border-slate-200 my-8;
 }
 
 /* 3. 프로 테마 (theme-pro) */
-.theme-pro .prose h1 {
-  @apply border-l-4 border-primary pl-4 text-primary font-extrabold;
-}
 .theme-pro .prose h2 {
-  @apply border-b-2 border-slate-200 pb-2 mb-4 font-bold;
+  @apply text-slate-900 tracking-wide border-b-2 border-slate-800 pb-2 mb-4 font-bold;
+}
+.theme-pro .prose h3 {
+  @apply text-slate-900 border-l-4 border-slate-900 pl-3 font-semibold;
 }
 .theme-pro .prose blockquote {
-  @apply bg-slate-50 border-l-4 border-slate-400 px-4 py-3 text-slate-600 shadow-sm;
+  @apply bg-slate-100 border-l-4 border-slate-900 italic text-slate-700 px-5 py-4;
+}
+.theme-pro .prose hr {
+  @apply border-0 border-t border-slate-300 my-8;
+}
+
+/* 4. 네오 팝 (theme-neopop) */
+.theme-neopop .prose h1 {
+  @apply border-[4px] border-black bg-[#ff00ff] text-white px-4 py-2.5 shadow-[4px_4px_0px_#000] font-black;
+}
+.theme-neopop .prose h2 {
+  @apply border-[3px] border-black bg-[#ffff00] text-black px-4 py-2 shadow-[3px_3px_0px_#000] font-extrabold;
+}
+.theme-neopop .prose h3 {
+  @apply text-black underline decoration-[4px] decoration-[#00ffff] font-bold;
+}
+.theme-neopop .prose blockquote {
+  @apply border-[2px] border-black bg-[#00ffff] text-black p-4 font-bold shadow-[4px_4px_0px_#000] not-italic;
+}
+.theme-neopop .prose hr {
+  @apply border-solid border-[2px] border-black my-8;
+}
+.theme-neopop .prose a {
+  @apply text-[#ff0000] font-bold no-underline border-b-2 border-black;
+}
+
+/* 5. 에디토리얼 (theme-editorial) */
+.theme-editorial .prose {
+  font-family: serif;
+}
+.theme-editorial .prose h1 {
+  @apply text-[2.5em] text-center border-b border-[#1a1a1a] pb-3 text-[#1a1a1a] font-normal font-serif;
+}
+.theme-editorial .prose h2 {
+  @apply text-center border-y border-[#1a1a1a] py-3 text-[#2c2c2c] font-normal font-serif;
+}
+.theme-editorial .prose h3 {
+  @apply text-[#3a3a3a] italic font-normal font-serif;
+}
+.theme-editorial .prose blockquote {
+  @apply border-l border-[#333] pl-6 italic text-[#4a4a4a] text-[1.1em] bg-transparent font-serif;
+}
+.theme-editorial .prose hr {
+  @apply border-0 border-t border-[#ccc] my-8;
+}
+.theme-editorial .prose a {
+  @apply text-[#1a1a1a] underline underline-offset-4;
+}
+
+/* 6. 미드나잇 다크 (theme-midnight) */
+.theme-midnight .prose,
+.theme-midnight .prose p,
+.theme-midnight .prose li,
+.theme-midnight .prose strong {
+  @apply text-[#e2e8f0];
+}
+.theme-midnight .prose h1 {
+  @apply text-white border-b-2 border-[#38bdf8] pb-3 font-extrabold;
+}
+.theme-midnight .prose h2 {
+  @apply text-[#f1f5f9] border-l-4 border-[#f472b6] pl-4 font-bold;
+}
+.theme-midnight .prose h3 {
+  @apply text-[#cbd5e1] underline decoration-[#38bdf8] underline-offset-4;
+}
+.theme-midnight .prose h4,
+.theme-midnight .prose h5,
+.theme-midnight .prose h6 {
+  @apply text-[#e2e8f0];
+}
+.theme-midnight .prose blockquote {
+  @apply bg-[#1e293b] border-l-4 border-[#38bdf8] px-5 py-4 text-[#94a3b8] italic;
+}
+.theme-midnight .prose hr {
+  @apply border-0 border-t border-[#334155] my-8;
+}
+.theme-midnight .prose a {
+  @apply text-[#38bdf8] no-underline border-b border-dashed border-[#38bdf8];
+}
+
+/* 7. 에코 네이처 (theme-eco) */
+.theme-eco .prose h1 {
+  @apply text-[#14532d] border-b-2 border-[#86efac] pb-3 font-extrabold;
+}
+.theme-eco .prose h2 {
+  @apply text-[#166534] bg-[#dcfce7] px-4 py-2.5 rounded-xl font-bold;
+}
+.theme-eco .prose h3 {
+  @apply text-[#15803d] font-semibold;
+}
+.theme-eco .prose blockquote {
+  @apply bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl p-5 text-[#166534] italic;
+}
+.theme-eco .prose hr {
+  @apply border-0 border-t-2 border-dashed border-[#bbf7d0] my-8;
+}
+.theme-eco .prose a {
+  @apply text-[#16a34a] underline decoration-[#86efac] underline-offset-4;
+}
+
+/* 8. 사이버펑크 (theme-cyberpunk) */
+.theme-cyberpunk .prose {
+  font-family: monospace;
+}
+.theme-cyberpunk .prose,
+.theme-cyberpunk .prose p,
+.theme-cyberpunk .prose li,
+.theme-cyberpunk .prose strong {
+  @apply text-[#00ff00];
+}
+.theme-cyberpunk .prose h1 {
+  @apply text-[#ff00ff] uppercase border-b-2 border-dashed border-[#ff00ff] pb-3 font-black;
+}
+.theme-cyberpunk .prose h2 {
+  @apply text-[#00ffff] border-l-4 border-[#00ffff] pl-4 bg-[#1a1a1a]/80 font-extrabold;
+}
+.theme-cyberpunk .prose h3 {
+  @apply text-[#ffff00] font-bold;
+}
+.theme-cyberpunk .prose h4,
+.theme-cyberpunk .prose h5,
+.theme-cyberpunk .prose h6 {
+  @apply text-[#00ff00];
+}
+.theme-cyberpunk .prose blockquote {
+  @apply bg-black border border-[#00ff00] text-[#00ff00] px-5 py-4 border-l-4 border-l-[#ff00ff] not-italic;
+}
+.theme-cyberpunk .prose hr {
+  @apply border-0 border-t border-dashed border-[#00ff00] my-8;
+}
+.theme-cyberpunk .prose a {
+  @apply text-[#ffff00] no-underline border-b border-[#ffff00];
 }

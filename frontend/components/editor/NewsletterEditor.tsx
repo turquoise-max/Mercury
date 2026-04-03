@@ -59,7 +59,7 @@ export interface NewsletterEditorRef {
 }
 
 export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditorProps>(({ content, onSelectionChange }, ref) => {
-  const [selectedTheme, setSelectedTheme] = useState<'theme-default' | 'theme-soft' | 'theme-pro'>('theme-default');
+  const [selectedTheme, setSelectedTheme] = useState<string>('theme-default');
   const [textStyle, setTextStyle] = useState<string>('p');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,13 +92,38 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
     },
     'theme-soft': {
       name: '소프트 테마',
-      desc: '부드럽고 편안한 스타일',
+      desc: '최신 SaaS 블로그처럼 부드럽고 친근한 라운드 스타일',
       style: { backgroundColor: '#f8fafc', color: '#334155', fontFamily: 'sans-serif' },
     },
     'theme-pro': {
       name: '프로페셔널 테마',
-      desc: '신뢰감을 주는 전문적인 스타일',
-      style: { backgroundColor: '#ffffff', color: '#1e293b', fontFamily: 'sans-serif' },
+      desc: '고급 비즈니스/VC 뉴스레터처럼 정갈하고 신뢰감 있는 스타일',
+      style: { backgroundColor: '#ffffff', color: '#0f172a', fontFamily: 'sans-serif' },
+    },
+    'theme-neopop': {
+      name: '네오 팝',
+      desc: '발랄하고 톡톡 튀는 트렌디한 스타일',
+      style: { backgroundColor: '#ffffff', color: '#000000', fontFamily: 'sans-serif' },
+    },
+    'theme-editorial': {
+      name: '에디토리얼',
+      desc: '고급스러운 잡지/신문 스타일',
+      style: { backgroundColor: '#fdfbf7', color: '#2c2c2c', fontFamily: 'serif' },
+    },
+    'theme-midnight': {
+      name: '미드나잇 다크',
+      desc: '세련된 다크 모드',
+      style: { backgroundColor: '#0f172a', color: '#e2e8f0', fontFamily: 'sans-serif' },
+    },
+    'theme-eco': {
+      name: '에코 네이처',
+      desc: '편안하고 자연 친화적인 스타일',
+      style: { backgroundColor: '#f8faf6', color: '#3f6212', fontFamily: 'sans-serif' },
+    },
+    'theme-cyberpunk': {
+      name: '사이버펑크',
+      desc: '해커/개발자 감성의 힙한 스타일',
+      style: { backgroundColor: '#121212', color: '#00ff00', fontFamily: 'monospace' },
     }
   };
 
@@ -193,19 +218,65 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
     let themeCss = '';
     if (selectedTheme === 'theme-soft') {
       themeCss = `
-        .prose h2 { background-color: #f1f5f9; color: #1e293b; padding: 10px 16px; border-radius: 16px; font-weight: bold; }
-        .prose h3 { position: relative; display: inline-block; z-index: 10; }
-        .prose h3::after { content: ''; position: absolute; bottom: 4px; left: 0; width: 100%; height: 10px; background-color: rgba(254, 240, 138, 0.6); z-index: -1; }
-        .prose blockquote { background-color: #eff6ff; color: #1e3a8a; border: none; padding: 16px 20px; border-radius: 16px; font-style: normal; font-weight: 500; }
-        .prose hr { border: 2px dashed #e2e8f0; margin: 32px 0; }
+        .prose h2 { background-color: #e0e7ff; color: #1e3a8a; padding: 8px 20px; border-radius: 9999px; display: inline-block; font-weight: bold; }
+        .prose blockquote { background-color: #ffffff; color: #334155; border: none; padding: 16px 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); font-style: normal; }
+        .prose hr { border: 0; border-top: 3px dotted #e2e8f0; margin: 32px 0; }
       `;
     } else if (selectedTheme === 'theme-pro') {
       themeCss = `
-        .prose h1 { border-left: 4px solid #6366f1; padding-left: 16px; color: #6366f1; font-weight: 800; }
-        .prose h2 { border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 16px; font-weight: bold; }
-        .prose blockquote { background-color: #f8fafc; border-left: 4px solid #94a3b8; padding: 12px 16px; color: #475569; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .prose h2 { color: #0f172a; letter-spacing: 0.05em; border-bottom: 3px double #0f172a; padding-bottom: 8px; margin-bottom: 16px; font-weight: bold; }
+        .prose h3 { color: #0f172a; border-left: 3px solid #0f172a; padding-left: 12px; font-weight: 600; }
+        .prose blockquote { background-color: #f1f5f9; border-left: 4px solid #0f172a; padding: 16px 20px; color: #475569; font-style: italic; }
+        .prose hr { border: 0; border-top: 1px solid #cbd5e1; margin: 32px 0; }
+      `;
+    } else if (selectedTheme === 'theme-neopop') {
+      themeCss = `
+        .prose h1 { border: 4px solid #000; background-color: #ff00ff; color: #fff; padding: 10px 16px; box-shadow: 4px 4px 0px #000; font-weight: 900; }
+        .prose h2 { border: 3px solid #000; background-color: #ffff00; color: #000; padding: 8px 16px; box-shadow: 3px 3px 0px #000; font-weight: 800; }
+        .prose h3 { color: #000; text-decoration: underline; text-decoration-thickness: 4px; text-decoration-color: #00ffff; font-weight: bold; }
+        .prose blockquote { border: 2px solid #000; background-color: #00ffff; color: #000; padding: 16px; font-weight: bold; box-shadow: 4px 4px 0px #000; font-style: normal; }
+        .prose hr { border: 2px solid #000; margin: 32px 0; }
+        .prose a { color: #ff0000; font-weight: bold; text-decoration: none; border-bottom: 2px solid #000; }
+      `;
+    } else if (selectedTheme === 'theme-editorial') {
+      themeCss = `
+        .prose h1 { font-family: serif; font-size: 2.5em; text-align: center; border-bottom: 1px solid #1a1a1a; padding-bottom: 12px; color: #1a1a1a; font-weight: normal; }
+        .prose h2 { font-family: serif; text-align: center; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; padding: 12px 0; color: #2c2c2c; font-weight: normal; }
+        .prose h3 { font-family: serif; color: #3a3a3a; font-style: italic; font-weight: normal; }
+        .prose blockquote { border-left: 1px solid #333; padding-left: 24px; font-style: italic; color: #4a4a4a; font-family: serif; font-size: 1.1em; background: transparent; }
+        .prose hr { border: 0; border-top: 1px solid #ccc; margin: 32px 0; }
+        .prose a { color: #1a1a1a; text-decoration: underline; text-underline-offset: 4px; }
+      `;
+    } else if (selectedTheme === 'theme-midnight') {
+      themeCss = `
+        .prose h1 { color: #fff; border-bottom: 2px solid #38bdf8; padding-bottom: 12px; font-weight: 800; }
+        .prose h2 { color: #f1f5f9; border-left: 4px solid #f472b6; padding-left: 16px; font-weight: 700; }
+        .prose h3 { color: #cbd5e1; text-decoration: underline; text-decoration-color: #38bdf8; text-underline-offset: 4px; }
+        .prose blockquote { background-color: #1e293b; border-left: 4px solid #38bdf8; padding: 16px 20px; color: #94a3b8; font-style: italic; }
+        .prose hr { border: 0; border-top: 1px solid #334155; margin: 32px 0; }
+        .prose a { color: #38bdf8; text-decoration: none; border-bottom: 1px dashed #38bdf8; }
+      `;
+    } else if (selectedTheme === 'theme-eco') {
+      themeCss = `
+        .prose h1 { color: #14532d; border-bottom: 2px solid #86efac; padding-bottom: 12px; font-weight: 800; }
+        .prose h2 { color: #166534; background-color: #dcfce7; padding: 10px 16px; border-radius: 12px; font-weight: 700; }
+        .prose h3 { color: #15803d; font-weight: 600; }
+        .prose blockquote { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; padding: 20px; color: #166534; font-style: italic; }
+        .prose hr { border: 0; border-top: 2px dashed #bbf7d0; margin: 32px 0; }
+        .prose a { color: #16a34a; text-decoration: underline; text-decoration-color: #86efac; text-underline-offset: 4px; }
+      `;
+    } else if (selectedTheme === 'theme-cyberpunk') {
+      themeCss = `
+        .prose h1 { color: #ff00ff; text-transform: uppercase; border-bottom: 2px dashed #ff00ff; padding-bottom: 12px; font-weight: 900; }
+        .prose h2 { color: #00ffff; border-left: 4px solid #00ffff; padding-left: 16px; background-color: rgba(26, 26, 26, 0.8); font-weight: 800; }
+        .prose h3 { color: #ffff00; font-weight: 700; }
+        .prose blockquote { background-color: #000; border: 1px solid #00ff00; color: #00ff00; padding: 16px 20px; border-left: 4px solid #ff00ff; font-style: normal; }
+        .prose hr { border: 0; border-top: 1px dashed #00ff00; margin: 32px 0; }
+        .prose a { color: #ffff00; text-decoration: none; border-bottom: 1px solid #ffff00; }
       `;
     }
+
+    const currentTheme = themes[selectedTheme as keyof typeof themes] || themes['theme-default'];
 
     return `<!DOCTYPE html>
 <html lang="ko">
@@ -214,7 +285,15 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI 뉴스레터</title>
   <style>
-    body { font-family: sans-serif; line-height: 1.6; color: #333333; max-width: 800px; margin: 0 auto; padding: 20px; }
+    body { 
+      font-family: ${currentTheme.style.fontFamily}, sans-serif; 
+      line-height: 1.6; 
+      color: ${currentTheme.style.color}; 
+      background-color: ${currentTheme.style.backgroundColor};
+      max-width: 800px; 
+      margin: 0 auto; 
+      padding: 20px; 
+    }
     img { max-width: 100%; height: auto; }
     .prose { max-width: none; }
     ${themeCss}
@@ -506,9 +585,9 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
                     <div 
                       className={`w-full max-w-[800px] mx-auto shadow-sm rounded-lg h-fit ${selectedTheme}`}
                       style={{
-                        backgroundColor: themes[selectedTheme].style.backgroundColor,
-                        color: themes[selectedTheme].style.color,
-                        fontFamily: themes[selectedTheme].style.fontFamily,
+                        backgroundColor: themes[selectedTheme as keyof typeof themes]?.style.backgroundColor || '#ffffff',
+                        color: themes[selectedTheme as keyof typeof themes]?.style.color || '#333333',
+                        fontFamily: themes[selectedTheme as keyof typeof themes]?.style.fontFamily || 'sans-serif',
                         padding: '40px',
                       }}
                       dangerouslySetInnerHTML={{ __html: `<div class="prose max-w-none ${selectedTheme}">${editor.getHTML()}</div>` }}

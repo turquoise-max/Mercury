@@ -176,7 +176,15 @@ def generate_newsletter_with_gemini(topic: str, main_news: list, ai_tools: list,
     context += format_articles(deep_finds, "심층 정보 및 아티클")
     context += format_articles(interesting_ai, "흥미로운 하드웨어 & 서비스")
     
-    prompt = f"""너는 10년 차 베테랑 뉴스레터 에디터야. 제공된 기사 정보들을 바탕으로 읽기 쉽고 흥미로운 뉴스레터를 작성해 줘. 
+    prompt = f"""[절대 규칙 - 반드시 지킬 것]
+- 환각(Hallucination) 절대 금지: 반드시 전달된 JSON 데이터(`main_news`, `ai_tools`, `deep_finds`, `interesting_ai`) 안에 있는 실제 기사 내용만을 바탕으로 작성해. 제공된 데이터에 부합하는 내용이 없다면 가상의 툴이나 논문을 지어내지 말고, 해당 섹션의 HTML을 빈 문자열("")로 반환해.
+- 사족 금지: '오늘의 툴을 소개합니다' 같은 뻔한 도입부 문장을 절대 쓰지 마. 곧바로 기사/툴 이름과 핵심 설명으로 넘어가.
+- 카테고리 엄수: 
+  1. 'ai_tools_html': 언론사나 뉴스 기사가 아닌, 실제 작동하는 '소프트웨어/앱/서비스'만 넣어.
+  2. 'deep_finds_html': 뭉뚱그린 사이트 소개가 아니라, 구체적인 논문 이름, 리포트 제목, 오픈소스 프로젝트 명을 정확히 명시해.
+  3. 'interesting_ai_html': ChatGPT 같은 챗봇 소프트웨어가 아니라, 반드시 로봇, 웨어러블, 가젯 등 물리적인 '기기(Hardware)' 위주로만 작성해. 관련 하드웨어 기사가 없다면 빈 문자열("")을 반환해.
+
+너는 10년 차 베테랑 뉴스레터 에디터야. 제공된 기사 정보들을 바탕으로 읽기 쉽고 흥미로운 뉴스레터를 작성해 줘. 
 반드시 아래 JSON 포맷으로만 응답해야 해. 마크다운(```json 등)은 절대 사용하지 마.
 
 {{
@@ -214,33 +222,30 @@ def generate_newsletter_with_gemini(topic: str, main_news: list, ai_tools: list,
         print(f"JSON 파싱 오류: {e}, 원본 텍스트: {cleaned_text}")
         raise HTTPException(status_code=500, detail="뉴스레터 생성 중 오류가 발생했습니다. 다시 시도해주세요.")
         
-    sponsor_html = f"""<hr>
-<h2>💎 스폰서</h2>
-<blockquote>{sponsor_text}</blockquote>
-""" if sponsor_text else ""
+    # 방어 로직: 각 섹션이 비어있지 않을 때만 제목과 구분선을 포함
+    intro_html = data.get('intro_html', '')
+    
+    main_news_html = data.get('main_news_html', '')
+    main_news_section = f"<hr>\n<h2>🔥 메인 뉴스</h2>\n{main_news_html}\n" if main_news_html else ""
+    
+    ai_tools_html = data.get('ai_tools_html', '')
+    ai_tools_section = f"<hr>\n<h2>🛠️ 오늘의 AI 툴</h2>\n{ai_tools_html}\n" if ai_tools_html else ""
+    
+    sponsor_section = f"<hr>\n<h2>💎 스폰서</h2>\n<blockquote>{sponsor_text}</blockquote>\n" if sponsor_text else ""
+    
+    deep_finds_html = data.get('deep_finds_html', '')
+    deep_finds_section = f"<hr>\n<h2>📚 심층 정보 및 아티클</h2>\n{deep_finds_html}\n" if deep_finds_html else ""
+    
+    interesting_ai_html = data.get('interesting_ai_html', '')
+    interesting_ai_section = f"<hr>\n<h2>🤖 흥미로운 하드웨어 & 서비스</h2>\n{interesting_ai_html}\n" if interesting_ai_html else ""
+    
+    prompt_section = f"<hr>\n<h2>✍️ 오늘의 프롬프트</h2>\n<blockquote>{prompt_of_the_day}</blockquote>\n" if prompt_of_the_day else ""
+    
+    sources_html = data.get('sources_html', '')
+    sources_section = f"<hr>\n<h2>� 관련 자료</h2>\n{sources_html}\n" if sources_html else ""
 
-    prompt_html = f"""<hr>
-<h2>✍️ 오늘의 프롬프트</h2>
-<blockquote>{prompt_of_the_day}</blockquote>
-""" if prompt_of_the_day else ""
-
-    final_html = f"""{data.get('intro_html', '')}
-<hr>
-<h2>🔥 메인 뉴스</h2>
-{data.get('main_news_html', '')}
-<hr>
-<h2>🛠️ 오늘의 AI 툴</h2>
-{data.get('ai_tools_html', '')}
-{sponsor_html}<hr>
-<h2>📚 심층 정보 및 아티클</h2>
-{data.get('deep_finds_html', '')}
-<hr>
-<h2>🤖 흥미로운 하드웨어 & 서비스</h2>
-{data.get('interesting_ai_html', '')}
-{prompt_html}<hr>
-<h2>🔗 관련 자료</h2>
-{data.get('sources_html', '')}
-<hr>
+    final_html = f"""{intro_html}
+{main_news_section}{ai_tools_section}{sponsor_section}{deep_finds_section}{interesting_ai_section}{prompt_section}{sources_section}<hr>
 <h2>💬 마무리 및 피드백</h2>
 <p>오늘의 뉴스레터는 어떠셨나요?</p>
 <p><a href="https://docs.google.com/forms/d/e/1FAIpQLSf9PbZ7ggnzlsrDPhx8BBpD8P-egznXo8iZ_R_Org3BmIcvHQ/viewform?usp=dialog" target="_blank"><strong>👉 피드백 남기러 가기 (1분 소요)</strong></a></p>
@@ -263,9 +268,9 @@ async def generate_newsletter(request: GenerateRequest):
     
     # 비동기로 자동 크롤링 병렬 실행
     ai_tools, deep_finds, interesting_ai = await asyncio.gather(
-        asyncio.to_thread(crawl_articles, "latest AI tools startup this week", 3),
-        asyncio.to_thread(crawl_articles, "top AI machine learning research papers github", 3),
-        asyncio.to_thread(crawl_articles, "interesting AI hardware robots gadgets", 2)
+        asyncio.to_thread(crawl_articles, f"new AI startup tools launch producthunt {request.topic}", 3),
+        asyncio.to_thread(crawl_articles, f"arXiv research paper {request.topic} AI", 3),
+        asyncio.to_thread(crawl_articles, f"new AI hardware gadget wearable robot release", 2)
     )
     
     html_content = generate_newsletter_with_gemini(
