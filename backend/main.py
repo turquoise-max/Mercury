@@ -41,7 +41,9 @@ class Article(BaseModel):
 
 class GenerateRequest(BaseModel):
     topic: str
-    articles: list[Article]
+    main_news: list[Article]
+    sponsor_text: Optional[str] = None
+    prompt_of_the_day: Optional[str] = None
 
 class ChatMessage(BaseModel):
     role: str
@@ -157,30 +159,95 @@ def call_gemini_with_retry(prompt: str, max_retries: int = 3, initial_delay: int
             
     raise HTTPException(status_code=500, detail="Gemini API 호출에 실패했습니다.")
 
-def generate_newsletter_with_gemini(topic: str, articles: list) -> str:
+def generate_newsletter_with_gemini(topic: str, main_news: list, ai_tools: list, deep_finds: list, interesting_ai: list, sponsor_text: Optional[str] = None, prompt_of_the_day: Optional[str] = None) -> str:
     print("Gemini API로 뉴스레터 생성 중...")
     
-    context = f"주제: {topic}\n\n[수집된 기사 정보]\n"
-    for i, article in enumerate(articles):
-        context += f"{i+1}. 제목: {article['title']}\nURL: {article['url']}\n내용 요약: {article['content']}...\n\n"
+    def format_articles(articles, title):
+        if not articles:
+            return ""
+        res = f"[{title}]\n"
+        for i, a in enumerate(articles):
+            res += f"{i+1}. 제목: {a['title']}\nURL: {a['url']}\n내용: {a['content'][:500]}...\n\n"
+        return res
         
-    prompt = f"""너는 10년 차 베테랑 뉴스레터 에디터야. 수집된 아래 기사 정보들을 바탕으로 읽기 쉽고 흥미로운 뉴스레터를 작성해 줘. 
-- 서론: 주제에 대한 최근 동향과 인사말
-- 본론: 각 기사를 헤드라인과 요약 내용으로 정리 (중요한 부분은 <strong> 태그 사용)
-- 결론: 요약 및 마무리 인사
-- 제약조건: 결과는 오직 Tiptap 에디터에서 즉시 사용 가능한 HTML 태그(<h1>, <h2>, <p>, <ul>, <li>, <strong>, <br>, <a>)로만 구성해 줘. 마크다운 기호(```html 등)는 절대 포함하지 마.
+    context = f"주제: {topic}\n\n"
+    context += format_articles(main_news, "메인 뉴스")
+    context += format_articles(ai_tools, "오늘의 AI 툴")
+    context += format_articles(deep_finds, "심층 정보 및 아티클")
+    context += format_articles(interesting_ai, "흥미로운 하드웨어 & 서비스")
+    
+    prompt = f"""너는 10년 차 베테랑 뉴스레터 에디터야. 제공된 기사 정보들을 바탕으로 읽기 쉽고 흥미로운 뉴스레터를 작성해 줘. 
+반드시 아래 JSON 포맷으로만 응답해야 해. 마크다운(```json 등)은 절대 사용하지 마.
 
+{{
+  "intro_html": "활기찬 인사말과 오늘 다룰 핵심 주제 8~10가지를 <ul><li> 형태의 불릿 포인트로 요약",
+  "main_news_html": "각 뉴스는 <h3>[이모지] 기사 제목</h3>과 <p>3~4문장 핵심 요약 (중요 부분 <strong>)</p>으로 구성",
+  "ai_tools_html": "툴 소개 (<ul><li>[이모지] <strong>툴이름</strong>: 1~2문장 기능 설명</li></ul>). 단, 제공된 툴 중 하나는 네이티브 애드 형태로 깊이 있게 소개할 것",
+  "deep_finds_html": "심층 정보 (다큐, 논문, 오픈소스 등)를 <ul><li> 형태로 구성",
+  "interesting_ai_html": "하드웨어/서비스 1개를 선정해 2~3문단으로 상세히 리뷰하는 HTML (<p> 태그 사용)",
+  "sources_html": "수집된 모든 기사의 출처(제목과 URL)를 <ul><li><a href='url'>제목</a></li></ul> 형태로 구성"
+}}
+
+제약조건:
+- 허용되는 HTML 태그: <h3>, <p>, <ul>, <li>, <strong>, <a>, <br>
+- JSON 형식 외에 다른 텍스트는 절대 출력하지 마.
+- 각 값은 문자열이어야 하고, 이스케이프 처리를 완벽하게 해줘.
+
+[수집된 기사 정보]
 {context}"""
 
-    html_result = call_gemini_with_retry(prompt)
+    result_text = call_gemini_with_retry(prompt, is_json=True)
     
-    # 혹시라도 마크다운 코드 블록이 포함되어 있다면 제거
-    if html_result.startswith("```html"):
-        html_result = html_result.replace("```html", "", 1)
-    if html_result.endswith("```"):
-        html_result = html_result[:html_result.rfind("```")]
+    # 마크다운 코드 블록 제거 전처리
+    cleaned_text = result_text.strip()
+    if cleaned_text.startswith("```json"):
+        cleaned_text = cleaned_text[7:]
+    elif cleaned_text.startswith("```"):
+        cleaned_text = cleaned_text[3:]
+    if cleaned_text.endswith("```"):
+        cleaned_text = cleaned_text[:-3]
+    cleaned_text = cleaned_text.strip()
+    
+    try:
+        data = json.loads(cleaned_text)
+    except json.JSONDecodeError as e:
+        print(f"JSON 파싱 오류: {e}, 원본 텍스트: {cleaned_text}")
+        raise HTTPException(status_code=500, detail="뉴스레터 생성 중 오류가 발생했습니다. 다시 시도해주세요.")
         
-    return html_result.strip()
+    sponsor_html = f"""<hr>
+<h2>💎 스폰서</h2>
+<blockquote>{sponsor_text}</blockquote>
+""" if sponsor_text else ""
+
+    prompt_html = f"""<hr>
+<h2>✍️ 오늘의 프롬프트</h2>
+<blockquote>{prompt_of_the_day}</blockquote>
+""" if prompt_of_the_day else ""
+
+    final_html = f"""{data.get('intro_html', '')}
+<hr>
+<h2>🔥 메인 뉴스</h2>
+{data.get('main_news_html', '')}
+<hr>
+<h2>🛠️ 오늘의 AI 툴</h2>
+{data.get('ai_tools_html', '')}
+{sponsor_html}<hr>
+<h2>📚 심층 정보 및 아티클</h2>
+{data.get('deep_finds_html', '')}
+<hr>
+<h2>🤖 흥미로운 하드웨어 & 서비스</h2>
+{data.get('interesting_ai_html', '')}
+{prompt_html}<hr>
+<h2>🔗 관련 자료</h2>
+{data.get('sources_html', '')}
+<hr>
+<h2>💬 마무리 및 피드백</h2>
+<p>오늘의 뉴스레터는 어떠셨나요?</p>
+<p><a href="https://docs.google.com/forms/d/e/1FAIpQLSf9PbZ7ggnzlsrDPhx8BBpD8P-egznXo8iZ_R_Org3BmIcvHQ/viewform?usp=dialog" target="_blank"><strong>👉 피드백 남기러 가기 (1분 소요)</strong></a></p>
+<br>
+<p><strong>Signing off, <br>— Mercury (머큐리)</strong></p>"""
+
+    return final_html
 
 @app.post("/api/search")
 async def search_articles(request: SearchRequest):
@@ -189,11 +256,27 @@ async def search_articles(request: SearchRequest):
 
 @app.post("/api/generate")
 async def generate_newsletter(request: GenerateRequest):
-    if not request.articles:
-        return {"html": "<p>선택된 기사가 없어 뉴스레터를 생성할 수 없습니다.</p>"}
+    if not request.main_news:
+        return {"html": "<p>선택된 메인 뉴스가 없어 뉴스레터를 생성할 수 없습니다.</p>"}
         
-    articles_dict = [{"title": a.title, "url": a.url, "content": a.content} for a in request.articles]
-    html_content = generate_newsletter_with_gemini(request.topic, articles_dict)
+    main_news_dict = [{"title": a.title, "url": a.url, "content": a.content} for a in request.main_news]
+    
+    # 비동기로 자동 크롤링 병렬 실행
+    ai_tools, deep_finds, interesting_ai = await asyncio.gather(
+        asyncio.to_thread(crawl_articles, "latest AI tools startup this week", 3),
+        asyncio.to_thread(crawl_articles, "top AI machine learning research papers github", 3),
+        asyncio.to_thread(crawl_articles, "interesting AI hardware robots gadgets", 2)
+    )
+    
+    html_content = generate_newsletter_with_gemini(
+        request.topic, 
+        main_news_dict, 
+        ai_tools, 
+        deep_finds, 
+        interesting_ai,
+        request.sponsor_text,
+        request.prompt_of_the_day
+    )
     
     print("뉴스레터 생성 완료!")
     

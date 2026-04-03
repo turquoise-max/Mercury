@@ -15,6 +15,7 @@ import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import { toast } from "sonner";
+import { useSearchArticles, useGenerateNewsletter } from "@/hooks/useNewsletter";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -51,12 +52,13 @@ interface Article {
 export default function Home() {
   const [topic, setTopic] = useState("");
   const [articleCount, setArticleCount] = useState(5);
-  const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Article[]>([]);
   const [selectedArticles, setSelectedArticles] = useState<Article[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<string>("");
   const [editorContent, setEditorContent] = useState("<p>이곳에 AI가 작성한 뉴스레터 초안이 표시됩니다.</p>");
+  
+  const searchMutation = useSearchArticles();
+  const generateMutation = useGenerateNewsletter();
   
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     { id: "init-msg", role: "assistant", content: "안녕하세요! 뉴스레터 생성을 도와드릴 AI 어시스턴트입니다. 어떤 주제로 뉴스레터를 작성해 드릴까요?" }
@@ -132,45 +134,22 @@ export default function Home() {
     }
   };
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (!topic.trim()) {
       toast.error("검색할 주제를 입력해주세요.");
       return;
     }
 
-    setIsSearching(true);
     setSearchResults([]);
-    try {
-      const response = await fetch("http://localhost:8000/api/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    searchMutation.mutate(
+      { topic, articleCount },
+      {
+        onSuccess: (data) => {
+          setSearchResults(data.articles || []);
+          setSelectedArticles([]);
         },
-        body: JSON.stringify({
-          topic,
-          article_count: articleCount,
-        }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to search articles");
       }
-
-      const data = await response.json();
-      if (!data.articles || data.articles.length === 0) {
-        toast.info("검색 결과가 없습니다. 다른 주제로 시도해보세요.");
-      } else {
-        toast.success(`${data.articles.length}개의 기사를 찾았습니다.`);
-      }
-      setSearchResults(data.articles || []);
-      setSelectedArticles([]);
-    } catch (error: any) {
-      console.error("Error searching articles:", error);
-      toast.error(`기사 검색 중 오류가 발생했습니다: ${error.message}`);
-    } finally {
-      setIsSearching(false);
-    }
+    );
   };
 
   const toggleArticleSelection = (article: Article) => {
@@ -184,7 +163,7 @@ export default function Home() {
     });
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (!topic.trim()) {
       toast.error("뉴스레터 주제를 입력해주세요.");
       return;
@@ -195,47 +174,35 @@ export default function Home() {
       return;
     }
 
-    setIsGenerating(true);
     setGenerationStatus("기사 읽는 중...");
     
-    try {
-      // Simulate status updates
-      const statusInterval = setInterval(() => {
-        setGenerationStatus(prev => {
-          if (prev === "기사 읽는 중...") return "초안 작성 중...";
-          if (prev === "초안 작성 중...") return "스타일 입히는 중...";
-          return prev;
-        });
-      }, 3000);
-
-      const response = await fetch("http://localhost:8000/api/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          topic,
-          articles: selectedArticles,
-        }),
+    // Simulate status updates
+    const statusInterval = setInterval(() => {
+      setGenerationStatus(prev => {
+        if (prev === "기사 읽는 중...") return "초안 작성 중...";
+        if (prev === "초안 작성 중...") return "스타일 입히는 중...";
+        return prev;
       });
+    }, 3000);
 
-      clearInterval(statusInterval);
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to generate newsletter");
+    generateMutation.mutate(
+      { 
+        topic, 
+        main_news: selectedArticles, 
+        sponsor_text: null,
+        prompt_of_the_day: null,
+        onStatusChange: setGenerationStatus 
+      },
+      {
+        onSuccess: (data) => {
+          setEditorContent(data.html);
+        },
+        onSettled: () => {
+          clearInterval(statusInterval);
+          setGenerationStatus("");
+        }
       }
-
-      const data = await response.json();
-      setEditorContent(data.html);
-      toast.success("뉴스레터 생성이 완료되었습니다.");
-    } catch (error: any) {
-      console.error("Error generating newsletter:", error);
-      toast.error(`뉴스레터 생성 중 오류가 발생했습니다: ${error.message}`);
-    } finally {
-      setIsGenerating(false);
-      setGenerationStatus("");
-    }
+    );
   };
 
   const handleChatRequest = async () => {
@@ -457,9 +424,9 @@ export default function Home() {
             <Button 
               className="w-full h-10 rounded-lg font-medium transition-all hover:shadow-md active:scale-[0.98]" 
               onClick={handleSearch}
-              disabled={isSearching}
+              disabled={searchMutation.isPending}
             >
-              {isSearching ? (
+              {searchMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   검색 중...
@@ -485,7 +452,7 @@ export default function Home() {
         <div className="flex-1 min-h-0 bg-transparent w-full overflow-hidden">
           <ScrollArea className="h-full w-full">
             <div className="p-4 pr-6 space-y-3">
-              {isSearching ? (
+              {searchMutation.isPending ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <Card key={`skel-${i}`} className="overflow-hidden border-slate-200 rounded-lg">
                     <CardContent className="py-1.5 px-3">
@@ -545,9 +512,9 @@ export default function Home() {
               className="w-full font-semibold shadow-md rounded-xl h-12 transition-all hover:shadow-lg active:scale-[0.98]" 
               size="lg" 
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={generateMutation.isPending}
             >
-              {isGenerating ? (
+              {generateMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {generationStatus || "생성 중..."}
@@ -565,7 +532,7 @@ export default function Home() {
         <ResizablePanel defaultSize={75} className="flex flex-col">
           <main className="flex-1 overflow-hidden flex flex-col items-center py-6 px-8 lg:px-12 relative">
             <Card className="w-full max-w-[850px] h-full min-h-0 flex flex-col shadow-xl rounded-2xl bg-white border border-slate-200/60 overflow-hidden ring-1 ring-black/5 relative pt-0">
-              {isGenerating ? (
+              {generateMutation.isPending ? (
                 <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center">
                   <div className="w-full max-w-2xl px-12 space-y-6">
                     <div className="flex items-center gap-3 justify-center mb-8 text-primary">

@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import Providers from "./providers";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -33,10 +34,12 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
       <body className="min-h-full flex flex-col">
-        <TooltipProvider>
-          {children}
-          <Toaster position="bottom-right" richColors />
-        </TooltipProvider>
+        <Providers>
+          <TooltipProvider>
+            {children}
+            <Toaster position="bottom-right" richColors />
+          </TooltipProvider>
+        </Providers>
       </body>
     </html>
   );
