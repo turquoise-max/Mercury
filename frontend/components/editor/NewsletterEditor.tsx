@@ -3,6 +3,9 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Highlight from '@tiptap/extension-highlight';
+import Link from '@tiptap/extension-link';
+// 터미널에서 npm install @tiptap/extension-image 를 실행하여 패키지를 설치해주세요.
+import Image from '@tiptap/extension-image';
 import { Button } from '@/components/ui/button';
 import { 
   Bold, 
@@ -12,12 +15,13 @@ import {
   Undo2, 
   Redo2, 
   Check, 
-  Sigma, 
   Download, 
   Copy,
-  Palette
+  Palette,
+  Link as LinkIcon,
+  Image as ImageIcon
 } from 'lucide-react';
-import { useEffect, forwardRef, useImperativeHandle, useState } from 'react';
+import { useEffect, forwardRef, useImperativeHandle, useState, useRef } from 'react';
 import {
   Select,
   SelectContent,
@@ -57,6 +61,28 @@ export interface NewsletterEditorRef {
 export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditorProps>(({ content, onSelectionChange }, ref) => {
   const [selectedTheme, setSelectedTheme] = useState<'theme-default' | 'theme-soft' | 'theme-pro'>('theme-default');
   const [textStyle, setTextStyle] = useState<string>('p');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 5MB 용량 체크
+    if (file.size > 5 * 1024 * 1024) {
+      alert('이미지 용량은 5MB를 초과할 수 없습니다. 브라우저 성능을 위해 작은 이미지를 사용해주세요.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (editor && typeof reader.result === 'string') {
+        editor.chain().focus().setImage({ src: reader.result }).run();
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
 
   const themes = {
     'theme-default': {
@@ -82,6 +108,11 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
       Highlight.configure({
         multicolor: true,
       }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+      }),
+      Image.configure({ inline: true }),
     ],
     content: content,
     immediatelyRender: false,
@@ -219,12 +250,36 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
     URL.revokeObjectURL(url);
   };
 
+  const setLink = () => {
+    if (!editor) return;
+    const previousUrl = editor.getAttributes('link').href;
+    const url = window.prompt('URL을 입력하세요', previousUrl);
+
+    if (url === null) {
+      return;
+    }
+
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  };
+
   if (!editor) {
     return null;
   }
 
   return (
     <div className="flex flex-col w-full h-full bg-white relative">
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleImageUpload}
+        className="hidden"
+      />
       <div className="flex px-3 border-b border-slate-100 bg-white/90 backdrop-blur-sm sticky top-0 z-20 items-center justify-between shadow-sm h-[52px] overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex items-center justify-between w-full min-w-[650px] gap-2">
           {/* Left Group */}
@@ -341,6 +396,38 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={setLink}
+                  className={`h-9 w-9 p-0 inline-flex items-center justify-center rounded-md transition-all ${editor.isActive('link') ? 'bg-slate-200 text-primary' : 'hover:bg-slate-100 text-slate-600'}`}
+                >
+                  <LinkIcon className="w-[18px] h-[18px]" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                링크
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-9 w-9 p-0 inline-flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-600 transition-all"
+                >
+                  <ImageIcon className="w-[18px] h-[18px]" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                이미지 삽입
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => editor.chain().focus().toggleBulletList().run()}
                   className={`h-9 w-9 p-0 inline-flex items-center justify-center rounded-md transition-all ${editor.isActive('bulletList') ? 'bg-slate-200 text-primary' : 'hover:bg-slate-100 text-slate-600'}`}
                 >
@@ -365,17 +452,6 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
                 번호 매기기 목록
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center justify-center h-9 w-9 text-slate-400">
-                  <Sigma className="w-[18px] h-[18px]" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                수식 삽입 (준비 중)
               </TooltipContent>
             </Tooltip>
           </div>
