@@ -134,3 +134,33 @@
     @apply font-sans;
   }
 }
+
+/* 1. 기본 테마 (theme-default) */
+.theme-default .prose {
+  /* Tailwind 기본 prose 스타일 유지 */
+}
+
+/* 2. 소프트 테마 (theme-soft) */
+.theme-soft .prose h2 {
+  @apply bg-slate-100 text-slate-800 px-4 py-2.5 rounded-2xl border-none font-bold;
+}
+.theme-soft .prose h3 {
+  @apply relative inline-block z-10 after:content-[''] after:absolute after:bottom-1 after:left-0 after:w-full after:h-2.5 after:bg-yellow-200/60 after:-z-10;
+}
+.theme-soft .prose blockquote {
+  @apply bg-blue-50 text-blue-900 border-none px-5 py-4 rounded-2xl not-italic font-medium;
+}
+.theme-soft .prose hr {
+  @apply border-dashed border-2 border-slate-200 my-8;
+}
+
+/* 3. 프로 테마 (theme-pro) */
+.theme-pro .prose h1 {
+  @apply border-l-4 border-primary pl-4 text-primary font-extrabold;
+}
+.theme-pro .prose h2 {
+  @apply border-b-2 border-slate-200 pb-2 mb-4 font-bold;
+}
+.theme-pro .prose blockquote {
+  @apply bg-slate-50 border-l-4 border-slate-400 px-4 py-3 text-slate-600 shadow-sm;
+}

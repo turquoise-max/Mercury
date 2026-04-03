@@ -55,27 +55,24 @@ export interface NewsletterEditorRef {
 }
 
 export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditorProps>(({ content, onSelectionChange }, ref) => {
-  const [selectedTheme, setSelectedTheme] = useState<'minimal' | 'warm' | 'dark'>('minimal');
+  const [selectedTheme, setSelectedTheme] = useState<'theme-default' | 'theme-soft' | 'theme-pro'>('theme-default');
   const [textStyle, setTextStyle] = useState<string>('p');
 
   const themes = {
-    minimal: {
-      name: '🤍 미니멀 베이직',
-      desc: '깨끗한 흰색 배경, 기본 폰트',
+    'theme-default': {
+      name: '기본 테마',
+      desc: '기본적인 깔끔한 스타일',
       style: { backgroundColor: '#ffffff', color: '#333333', fontFamily: 'sans-serif' },
-      css: `body { font-family: sans-serif; line-height: 1.6; color: #333333; background-color: #ffffff; max-width: 800px; margin: 0 auto; padding: 20px; } h1, h2 { color: #111111; } blockquote { border-left: 4px solid #dddddd; padding-left: 1rem; color: #666666; } p { margin-bottom: 1.25em; line-height: 1.6; } a { color: #0066cc; text-decoration: none; }`
     },
-    warm: {
-      name: '☕ 따뜻한 감성',
-      desc: '옅은 베이지색 배경, 세리프 폰트',
-      style: { backgroundColor: '#faf8f5', color: '#4a3f35', fontFamily: 'serif' },
-      css: `body { font-family: 'Times New Roman', serif; line-height: 1.7; color: #4a3f35; background-color: #faf8f5; max-width: 800px; margin: 0 auto; padding: 20px; } h1, h2 { color: #2d241c; } blockquote { border-left: 4px solid #d3c4b7; padding-left: 1rem; color: #7a6b5d; font-style: italic; } p { margin-bottom: 1.25em; line-height: 1.7; } a { color: #a67c52; text-decoration: underline; }`
+    'theme-soft': {
+      name: '소프트 테마',
+      desc: '부드럽고 편안한 스타일',
+      style: { backgroundColor: '#f8fafc', color: '#334155', fontFamily: 'sans-serif' },
     },
-    dark: {
-      name: '🌙 모던 다크',
-      desc: '어두운 배경, 밝은 텍스트',
-      style: { backgroundColor: '#1a1a1a', color: '#e0e0e0', fontFamily: 'sans-serif' },
-      css: `body { font-family: sans-serif; line-height: 1.6; color: #e0e0e0; background-color: #1a1a1a; max-width: 800px; margin: 0 auto; padding: 20px; } h1, h2 { color: #ffffff; } blockquote { border-left: 4px solid #444444; padding-left: 1rem; color: #aaaaaa; } p { margin-bottom: 1.25em; line-height: 1.6; } a { color: #66b3ff; text-decoration: none; }`
+    'theme-pro': {
+      name: '프로페셔널 테마',
+      desc: '신뢰감을 주는 전문적인 스타일',
+      style: { backgroundColor: '#ffffff', color: '#1e293b', fontFamily: 'sans-serif' },
     }
   };
 
@@ -90,7 +87,7 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base lg:prose-lg xl:prose-2xl m-5 focus:outline-none w-full max-w-none',
+        class: 'prose prose-sm sm:prose-base m-5 focus:outline-none w-full max-w-none',
       },
     },
     onTransaction: ({ editor }) => {
@@ -160,7 +157,25 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
   const getFullHtml = () => {
     if (!editor) return "";
     const editorContent = editor.getHTML();
-    const themeCss = themes[selectedTheme].css;
+    
+    // 테마별 CSS 추가
+    let themeCss = '';
+    if (selectedTheme === 'theme-soft') {
+      themeCss = `
+        .prose h2 { background-color: #f1f5f9; color: #1e293b; padding: 10px 16px; border-radius: 16px; font-weight: bold; }
+        .prose h3 { position: relative; display: inline-block; z-index: 10; }
+        .prose h3::after { content: ''; position: absolute; bottom: 4px; left: 0; width: 100%; height: 10px; background-color: rgba(254, 240, 138, 0.6); z-index: -1; }
+        .prose blockquote { background-color: #eff6ff; color: #1e3a8a; border: none; padding: 16px 20px; border-radius: 16px; font-style: normal; font-weight: 500; }
+        .prose hr { border: 2px dashed #e2e8f0; margin: 32px 0; }
+      `;
+    } else if (selectedTheme === 'theme-pro') {
+      themeCss = `
+        .prose h1 { border-left: 4px solid #6366f1; padding-left: 16px; color: #6366f1; font-weight: 800; }
+        .prose h2 { border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 16px; font-weight: bold; }
+        .prose blockquote { background-color: #f8fafc; border-left: 4px solid #94a3b8; padding: 12px 16px; color: #475569; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+      `;
+    }
+
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -168,11 +183,16 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI 뉴스레터</title>
   <style>
+    body { font-family: sans-serif; line-height: 1.6; color: #333333; max-width: 800px; margin: 0 auto; padding: 20px; }
+    img { max-width: 100%; height: auto; }
+    .prose { max-width: none; }
     ${themeCss}
   </style>
 </head>
 <body>
-  ${editorContent}
+  <div class="prose ${selectedTheme}">
+    ${editorContent}
+  </div>
 </body>
 </html>`;
   };
@@ -205,9 +225,10 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
 
   return (
     <div className="flex flex-col w-full h-full bg-white relative">
-      <div className="flex px-3 border-b border-slate-100 bg-white/90 backdrop-blur-sm sticky top-0 z-20 items-center justify-between shadow-sm h-[52px]">
-        {/* Left Group */}
-        <div className="flex items-center gap-0.5 h-full">
+      <div className="flex px-3 border-b border-slate-100 bg-white/90 backdrop-blur-sm sticky top-0 z-20 items-center justify-between shadow-sm h-[52px] overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex items-center justify-between w-full min-w-[650px] gap-2">
+          {/* Left Group */}
+          <div className="flex items-center gap-0.5 h-full shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center justify-center h-9 w-9 text-emerald-500/80">
@@ -254,11 +275,11 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
           </Tooltip>
         </div>
 
-        <div className="w-px h-7 bg-slate-200 mx-3" />
+        <div className="w-px h-7 bg-slate-200 mx-3 shrink-0" />
 
         {/* Center Group */}
-        <div className="flex items-center gap-3 flex-1">
-          <div className="flex items-center">
+        <div className="flex items-center gap-3 flex-1 min-w-max">
+          <div className="flex items-center gap-2">
             <Select
               value={textStyle}
               onValueChange={(value) => {
@@ -360,18 +381,18 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
           </div>
         </div>
 
-        <div className="w-px h-7 bg-slate-200 mx-3" />
+        <div className="w-px h-7 bg-slate-200 mx-3 shrink-0" />
 
         {/* Right Group */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Dialog>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="h-9 gap-1.5 text-slate-600 font-medium">
                 <Palette className="w-4 h-4" />
-                디자인 및 내보내기
+                내보내기
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[90vw] w-[1400px] h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+            <DialogContent className="sm:max-w-[1400px] max-w-[90vw] w-[1400px] h-[85vh] flex flex-col gap-0 p-0 overflow-hidden" aria-describedby={undefined}>
               <DialogHeader className="px-6 py-4 border-b shrink-0">
                 <DialogTitle>디자인 및 내보내기</DialogTitle>
               </DialogHeader>
@@ -379,7 +400,7 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
                 {/* 좌측 패널: 테마 선택 */}
                 <div className="w-1/3 border-r bg-slate-50/50 p-6 flex flex-col gap-4 overflow-y-auto">
                   <h3 className="font-semibold text-sm text-slate-500 mb-2">테마 선택</h3>
-                  {(Object.entries(themes) as [keyof typeof themes, typeof themes['minimal']][]).map(([key, theme]) => (
+                  {(Object.entries(themes) as [keyof typeof themes, typeof themes['theme-default']][]).map(([key, theme]) => (
                     <button
                       key={key}
                       onClick={() => setSelectedTheme(key)}
@@ -405,22 +426,23 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
                       </Button>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-auto p-8 flex justify-center">
+                  <div className="flex-1 overflow-auto p-8">
                     <div 
-                      className="w-full max-w-[800px] shadow-sm rounded-lg min-h-full"
+                      className={`w-full max-w-[800px] mx-auto shadow-sm rounded-lg h-fit ${selectedTheme}`}
                       style={{
                         backgroundColor: themes[selectedTheme].style.backgroundColor,
                         color: themes[selectedTheme].style.color,
                         fontFamily: themes[selectedTheme].style.fontFamily,
                         padding: '40px',
                       }}
-                      dangerouslySetInnerHTML={{ __html: editor.getHTML() }}
+                      dangerouslySetInnerHTML={{ __html: `<div class="prose max-w-none ${selectedTheme}">${editor.getHTML()}</div>` }}
                     />
                   </div>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
+        </div>
         </div>
       </div>
       <ScrollArea className="flex-1 min-h-0 w-full">
