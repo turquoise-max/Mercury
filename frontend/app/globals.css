@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 @import "tw-animate-css";
@@ -125,7 +126,8 @@
   }
   body {
     @apply bg-background text-foreground break-words break-keep;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Pretendard', 'Noto Sans KR', 'Inter', sans-serif;
+    line-height: 1.75;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight text-foreground;
@@ -133,6 +135,43 @@
   html {
     @apply font-sans;
   }
+}
+
+/* 공통 타이포그래피 (시각적 계층) */
+.prose {
+  line-height: 1.75;
+}
+.prose p {
+  margin-top: 1.2em;
+  margin-bottom: 1.2em;
+}
+.prose h1 {
+  margin-top: 2em;
+  margin-bottom: 1em;
+  line-height: 1.3;
+}
+.prose h2 {
+  margin-top: 1.8em;
+  margin-bottom: 0.8em;
+  line-height: 1.4;
+}
+.prose h3 {
+  margin-top: 1.5em;
+  margin-bottom: 0.6em;
+  line-height: 1.5;
+}
+.prose ul, .prose ol {
+  margin-top: 1em;
+  margin-bottom: 1em;
+  padding-left: 1.5em;
+}
+.prose li {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+.prose blockquote {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
 }
 
 /* 피드백 CTA 버튼 스타일 */
@@ -157,75 +196,85 @@
 
 /* 1. 기본 테마 (theme-default) */
 .theme-default .prose {
-  /* Tailwind 기본 prose 스타일 유지 */
+  font-family: 'Pretendard', 'Noto Sans KR', 'Inter', sans-serif;
 }
 
 /* 2. 소프트 테마 (theme-soft) */
+.theme-soft .prose {
+  font-family: 'Pretendard', 'Noto Sans KR', 'Inter', sans-serif;
+}
 .theme-soft .prose h2 {
-  @apply bg-indigo-100 text-indigo-900 rounded-full inline-block px-5 py-2 font-bold;
+  @apply bg-indigo-50/80 text-indigo-900 rounded-2xl inline-block px-6 py-2.5 font-bold shadow-[0_8px_30px_rgb(0,0,0,0.04)];
 }
 .theme-soft .prose blockquote {
-  @apply bg-white rounded-2xl shadow-sm border-none px-5 py-4 text-slate-700 not-italic;
+  @apply bg-white/80 rounded-3xl border-none px-6 py-5 text-slate-700 not-italic shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)];
 }
 .theme-soft .prose hr {
-  @apply border-0 border-dotted border-t-4 border-slate-200 my-8;
+  @apply border-0 border-t-2 border-slate-100 my-10;
 }
 
 /* 3. 프로 테마 (theme-pro) */
+.theme-pro .prose {
+  font-family: 'Playfair Display', 'Noto Serif KR', serif;
+  letter-spacing: 0.02em;
+}
 .theme-pro .prose h2 {
-  @apply text-slate-900 tracking-wide border-b-2 border-slate-800 pb-2 mb-4 font-bold;
+  @apply text-slate-900 border-b border-slate-800 pb-3 mb-5 font-bold tracking-widest uppercase;
 }
 .theme-pro .prose h3 {
-  @apply text-slate-900 border-l-4 border-slate-900 pl-3 font-semibold;
+  @apply text-slate-900 border-l border-slate-900 pl-4 font-semibold tracking-wide;
 }
 .theme-pro .prose blockquote {
-  @apply bg-slate-100 border-l-4 border-slate-900 italic text-slate-700 px-5 py-4;
+  @apply bg-transparent border-l border-slate-400 italic text-slate-600 px-6 py-4;
 }
 .theme-pro .prose hr {
-  @apply border-0 border-t border-slate-300 my-8;
+  @apply border-0 border-t border-slate-200 my-10;
 }
 
 /* 4. 네오 팝 (theme-neopop) */
+.theme-neopop .prose {
+  font-family: 'Space Grotesk', sans-serif;
+}
 .theme-neopop .prose h1 {
-  @apply border-[4px] border-black bg-[#ff00ff] text-white px-4 py-2.5 shadow-[4px_4px_0px_#000] font-black;
+  @apply border-[3px] border-black bg-[#ff00ff] text-white px-6 py-4 shadow-[6px_6px_0px_#000] font-black;
 }
 .theme-neopop .prose h2 {
-  @apply border-[3px] border-black bg-[#ffff00] text-black px-4 py-2 shadow-[3px_3px_0px_#000] font-extrabold;
+  @apply border-[3px] border-black bg-[#ffff00] text-black px-5 py-3 shadow-[5px_5px_0px_#000] font-extrabold;
 }
 .theme-neopop .prose h3 {
-  @apply text-black underline decoration-[4px] decoration-[#00ffff] font-bold;
+  @apply text-black underline decoration-[3px] decoration-[#00ffff] font-bold underline-offset-4;
 }
 .theme-neopop .prose blockquote {
-  @apply border-[2px] border-black bg-[#00ffff] text-black p-4 font-bold shadow-[4px_4px_0px_#000] not-italic;
+  @apply border-[3px] border-black bg-[#00ffff] text-black p-6 font-bold shadow-[6px_6px_0px_#000] not-italic;
 }
 .theme-neopop .prose hr {
-  @apply border-solid border-[2px] border-black my-8;
+  @apply border-solid border-[3px] border-black my-10;
 }
 .theme-neopop .prose a {
-  @apply text-[#ff0000] font-bold no-underline border-b-2 border-black;
+  @apply text-[#ff0000] font-bold no-underline border-b-[3px] border-black;
 }
 
 /* 5. 에디토리얼 (theme-editorial) */
 .theme-editorial .prose {
-  font-family: serif;
+  font-family: 'Playfair Display', 'Noto Serif KR', serif;
 }
 .theme-editorial .prose h1 {
-  @apply text-[2.5em] text-center border-b border-[#1a1a1a] pb-3 text-[#1a1a1a] font-normal font-serif;
+  @apply text-[2.8em] text-center border-b border-[#1a1a1a] pb-4 text-[#1a1a1a] font-normal;
 }
 .theme-editorial .prose h2 {
-  @apply text-center border-y border-[#1a1a1a] py-3 text-[#2c2c2c] font-normal font-serif;
+  @apply text-center border-y border-[#1a1a1a] py-4 text-[#2c2c2c] font-normal uppercase tracking-widest;
 }
 .theme-editorial .prose h3 {
-  @apply text-[#3a3a3a] italic font-normal font-serif;
+  @apply text-[#3a3a3a] italic font-normal;
 }
 .theme-editorial .prose blockquote {
-  @apply border-l border-[#333] pl-6 italic text-[#4a4a4a] text-[1.1em] bg-transparent font-serif;
+  @apply border-l border-y-0 border-r-0 border-[#333] pl-6 py-2 my-6 italic text-[#4a4a4a] text-[1.15em] bg-transparent;
 }
 .theme-editorial .prose hr {
-  @apply border-0 border-t border-[#ccc] my-8;
+  @apply border-0 border-t border-[#ccc] my-10;
 }
 .theme-editorial .prose a {
-  @apply text-[#1a1a1a] underline underline-offset-4;
+  @apply text-[#1a1a1a] underline underline-offset-4 decoration-1;
 }
 
 /* 6. 미드나잇 다크 (theme-midnight) */
@@ -281,7 +330,7 @@
 
 /* 8. 사이버펑크 (theme-cyberpunk) */
 .theme-cyberpunk .prose {
-  font-family: monospace;
+  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
 }
 .theme-cyberpunk .prose,
 .theme-cyberpunk .prose p,
