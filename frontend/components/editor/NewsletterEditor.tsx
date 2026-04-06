@@ -208,7 +208,7 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
     },
     replaceTextAtRange: (from: number, to: number, newText: string) => {
       if (!editor) return;
-      editor.chain().focus().setTextSelection({ from, to }).insertContent(newText).run();
+      editor.chain().focus().setTextSelection({ from, to }).unsetHighlight().insertContent(newText).run();
     }
   }));
 

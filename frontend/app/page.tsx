@@ -584,16 +584,25 @@ export default function Home() {
                 <div key={msg.id} className="flex flex-col gap-2 max-w-[88%] text-sm">
                   <div className="bg-white p-3.5 rounded-2xl rounded-tl-sm shadow-sm border border-slate-100 text-slate-800">
                     <div className="prose prose-sm prose-slate max-w-none [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
-                      <ReactMarkdown>
-                        {msg.content}
-                      </ReactMarkdown>
+                      {msg.content ? (
+                        <ReactMarkdown>
+                          {msg.content}
+                        </ReactMarkdown>
+                      ) : (
+                        <div className="flex items-center gap-1.5 h-[20px] px-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {msg.type === "suggestion" && msg.suggestion && (
                     <div className="mt-1 space-y-3 bg-primary/5 p-3 rounded-xl border border-primary/20 border-dashed">
-                      <div className="bg-white/80 p-3 rounded-lg border border-primary/10 text-slate-700 whitespace-pre-wrap shadow-sm">
-                        {msg.suggestion.text}
-                      </div>
+                      <div 
+                        className="bg-white/80 p-3 rounded-lg border border-primary/10 text-slate-700 shadow-sm prose prose-sm prose-slate max-w-none"
+                        dangerouslySetInnerHTML={{ __html: msg.suggestion.text }}
+                      />
                       <div className="flex gap-2 w-full">
                         <Button 
                           size="sm" 
