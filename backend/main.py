@@ -8,13 +8,15 @@ import os
 import time
 import warnings
 import json
+import urllib.request
+import urllib.parse
+import xml.etree.ElementTree as ET
+import ssl
+import re
+import base64
 from dotenv import load_dotenv
-from duckduckgo_search import DDGS
-from firecrawl import FirecrawlApp
+from crawl4ai import AsyncWebCrawler
 from google import genai
-
-# DuckDuckGo 경고 억제
-warnings.filterwarnings("ignore", module="duckduckgo_search")
 
 # 환경 변수 로드 (.env 파일에서 GEMINI_API_KEY 등 로드)
 load_dotenv()
@@ -54,75 +56,75 @@ class ChatRequest(BaseModel):
     instruction: str
     chat_history: Optional[list[ChatMessage]] = []
 
-def crawl_articles(topic: str, count: int) -> list:
+async def crawl_articles(topic: str, count: int) -> list:
     print(f"[{topic}] 주제로 {count}개의 기사 검색 중...")
     results = []
     try:
-        ddgs = DDGS()
-        # DuckDuckGo 검색을 통해 기사 링크 수집
-        try:
-            search_results = list(ddgs.text(topic, max_results=count))
-        except Exception as e:
-            print(f"DuckDuckGo 검색 오류: {e}")
-            raise HTTPException(status_code=500, detail=f"DuckDuckGo 검색 중 오류가 발생했습니다: {e}")
-
-        if not search_results:
+        # 1. Bing 뉴스 RSS URL (다이렉트 원문 링크 제공, 암호화 없음)
+        encoded_topic = urllib.parse.quote(topic)
+        rss_url = f"https://www.bing.com/news/search?q={encoded_topic}&format=rss&mkt=ko-KR"
+        
+        ssl_context = ssl._create_unverified_context()
+        req = urllib.request.Request(
+            rss_url, 
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
+        )
+        
+        with urllib.request.urlopen(req, context=ssl_context) as response:
+            xml_data = response.read()
+            
+        root = ET.fromstring(xml_data)
+        items = root.findall('.//item')[:count + 5]
+        
+        if not items:
             return []
             
-        print(f"검색 완료. {len(search_results)}개의 링크 크롤링 시작...")
+        print(f"검색 완료. {len(items)}개의 기사 크롤링 시작...")
         
-        # Firecrawl 앱 초기화
-        firecrawl = FirecrawlApp(api_key=os.environ.get('FIRECRAWL_API_KEY'))
-        
-        for item in search_results:
-            url = item.get('href')
-            title = item.get('title')
-            if not url:
-                continue
+        # Crawl4AI 크롤러 실행
+        async with AsyncWebCrawler() as crawler:
+            for item in items:
+                title = item.findtext('title')
+                # Bing 뉴스는 리다이렉트 없이 진짜 언론사 주소를 바로 줍니다!
+                direct_url = item.findtext('link')
                 
-            print(f"[시작] Firecrawl 크롤링: {title} ({url})")
-            try:
-                # 파라미터 제외하고 기본 호출로 변경
-                if hasattr(firecrawl, 'scrape_url'):
-                    scrape_result = firecrawl.scrape_url(url)
-                else:
-                    scrape_result = firecrawl.scrape(url)
-                
-                print(f"Firecrawl 응답 타입: {type(scrape_result)}")
-                print(f"Firecrawl 응답 키: {scrape_result.keys() if isinstance(scrape_result, dict) else 'Not a dict'}")
+                if not direct_url:
+                    continue
 
-                # 반환된 결과에서 마크다운 텍스트 추출 (Object 및 Dict 형태 모두 대응)
-                text = ""
-                if isinstance(scrape_result, dict):
-                    if 'markdown' in scrape_result:
-                        text = scrape_result.get('markdown', '')
-                    elif 'data' in scrape_result and isinstance(scrape_result['data'], dict) and 'markdown' in scrape_result['data']:
-                        text = scrape_result['data'].get('markdown', '')
-                elif hasattr(scrape_result, 'markdown'):
-                    text = scrape_result.markdown or ""
-                elif hasattr(scrape_result, 'get'):
-                    text = scrape_result.get('markdown') or ""
+                # Bing 추적 URL에서 진짜 기사 URL만 깔끔하게 추출 (추가된 부분)
+                try:
+                    parsed_url = urllib.parse.urlparse(direct_url)
+                    query_params = urllib.parse.parse_qs(parsed_url.query)
+                    if 'url' in query_params:
+                        direct_url = query_params['url'][0]
+                except Exception:
+                    pass
+
+                print(f"[Crawl4AI 크롤링 시작] {direct_url}")
                 
-                # 토큰 제한을 방지하기 위해 각 기사당 상위 2000자로 자르기
-                text = (text or "").strip()[:2000]
-                
-                if text:
-                    print(f"성공: {len(text)}자 추출 완료 - {title}")
-                    results.append({
-                        'title': title,
-                        'url': url,
-                        'content': text
-                    })
-                else:
-                    print(f"실패/경고: 크롤링 결과가 비어 있음 - {title}")
-            except Exception as e:
-                print(f"오류: Firecrawl 크롤링 실패 ({url}) - 구체적 에러: {e}")
-                
-    except HTTPException:
-        raise
+                try:
+                    # magic=True로 언론사 자체 봇 차단막만 우회
+                    result = await crawler.arun(url=direct_url, magic=True)
+                    text = (result.markdown or "").strip()[:2000]
+                    
+                    if text:
+                        print(f"성공: {len(text)}자 추출 완료 - {title}")
+                        results.append({
+                            'title': title,
+                            'url': direct_url,
+                            'content': text
+                        })
+                        if len(results) >= count:
+                            print(f"✅ 요청한 {count}개의 기사 수집을 완료하여 크롤링을 조기 종료합니다.")
+                            break
+                    else:
+                        print(f"실패/경고: 크롤링 결과가 비어 있음 - {title}")
+                except Exception as e:
+                    print(f"오류: Crawl4AI 크롤링 실패 ({direct_url}) - {e}")
+                    
     except Exception as e:
         print(f"검색 과정 중 예기치 않은 오류 발생: {e}")
-        raise HTTPException(status_code=500, detail=f"기사 검색 중 예기치 않은 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"기사 검색 중 오류 발생: {str(e)}")
         
     return results
 
@@ -192,7 +194,7 @@ def generate_newsletter_with_gemini(topic: str, main_news: list, ai_tools: list,
   "main_news_html": "각 뉴스는 <h3>[이모지] 기사 제목</h3>과 <p>3~4문장 핵심 요약 (중요 부분 <strong>)</p>으로 구성",
   "ai_tools_html": "툴 소개 (<ul><li>[이모지] <strong>툴이름</strong>: 1~2문장 기능 설명</li></ul>). 단, 제공된 툴 중 하나는 네이티브 애드 형태로 깊이 있게 소개할 것",
   "deep_finds_html": "심층 정보 (다큐, 논문, 오픈소스 등)를 <ul><li> 형태로 구성",
-  "interesting_ai_html": "하드웨어/서비스 1개를 선정해 2~3문단으로 상세히 리뷰하는 HTML (<p> 태그 사용)",
+  "interesting_ai_html": "반드시 기사에 등장한 '특정 브랜드의 구체적인 제품명'을 하나 선정해서 2~3문단으로 상세히 리뷰하는 HTML (<p> 태그 사용). 만약 기사에 구체적인 제품명이 명시되어 있지 않다면, 절대 일반적인 말로 뭉뚱그려서 설명하지 말고 반드시 빈 문자열(\"\")을 반환해.",
   "sources_html": "수집된 모든 기사의 출처(제목과 URL)를 <ul><li><a href='url'>제목</a></li></ul> 형태로 구성"
 }}
 
@@ -242,21 +244,22 @@ def generate_newsletter_with_gemini(topic: str, main_news: list, ai_tools: list,
     prompt_section = f"<hr>\n<h2>✍️ 오늘의 프롬프트</h2>\n<blockquote>{prompt_of_the_day}</blockquote>\n" if prompt_of_the_day else ""
     
     sources_html = data.get('sources_html', '')
-    sources_section = f"<hr>\n<h2>� 관련 자료</h2>\n{sources_html}\n" if sources_html else ""
+    sources_section = f"<hr>\n<h2>🔗 관련 자료</h2>\n{sources_html}\n" if sources_html else ""
 
     final_html = f"""{intro_html}
 {main_news_section}{ai_tools_section}{sponsor_section}{deep_finds_section}{interesting_ai_section}{prompt_section}{sources_section}<hr>
 <h2>💬 마무리 및 피드백</h2>
-<p>오늘의 뉴스레터는 어떠셨나요?</p>
-<p><a href="https://docs.google.com/forms/d/e/1FAIpQLSf9PbZ7ggnzlsrDPhx8BBpD8P-egznXo8iZ_R_Org3BmIcvHQ/viewform?usp=dialog" target="_blank"><strong>👉 피드백 남기러 가기 (1분 소요)</strong></a></p>
+<p>오늘 머큐리가 전해드린 소식은 어떠셨나요? 여러분의 1분 피드백이 더 나은 뉴스레터를 만드는 데 큰 힘이 됩니다.</p>
+<p><a href="https://docs.google.com/forms/d/e/1FAIpQLSf9PbZ7ggnzlsrDPhx8BBpD8P-egznXo8iZ_R_Org3BmIcvHQ/viewform?usp=dialog" target="_blank" data-button="feedback"><strong>👉 피드백 남기러 가기 (1분 소요)</strong></a></p>
+<p>오늘 준비한 소식은 여기까지입니다. 눈길을 끄는 소식이 있었다면 동료와 친구들에게도 널리 공유해 주세요! 다음 주에도 가장 흥미로운 AI 소식으로 찾아오겠습니다. 🚀</p>
 <br>
-<p><strong>Signing off, <br>— Mercury (머큐리)</strong></p>"""
+<p><strong>오늘도 함께해 주셔서 감사합니다. <br>— Mercury (머큐리)</strong></p>"""
 
     return final_html
 
 @app.post("/api/search")
 async def search_articles(request: SearchRequest):
-    articles = crawl_articles(request.topic, request.article_count)
+    articles = await crawl_articles(request.topic, request.article_count)
     return {"articles": articles}
 
 @app.post("/api/generate")
@@ -268,9 +271,9 @@ async def generate_newsletter(request: GenerateRequest):
     
     # 비동기로 자동 크롤링 병렬 실행
     ai_tools, deep_finds, interesting_ai = await asyncio.gather(
-        asyncio.to_thread(crawl_articles, f"new AI startup tools launch producthunt {request.topic}", 3),
-        asyncio.to_thread(crawl_articles, f"arXiv research paper {request.topic} AI", 3),
-        asyncio.to_thread(crawl_articles, f"new AI hardware gadget wearable robot release", 2)
+        crawl_articles(f"new AI startup tools launch producthunt {request.topic}", 3),
+        crawl_articles(f"arXiv research paper {request.topic} AI", 3),
+        crawl_articles(f"new AI hardware gadget wearable robot release", 2)
     )
     
     html_content = generate_newsletter_with_gemini(

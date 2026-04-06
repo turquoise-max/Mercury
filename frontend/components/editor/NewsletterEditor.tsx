@@ -129,7 +129,9 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        link: false,
+      }),
       Highlight.configure({
         multicolor: true,
       }),

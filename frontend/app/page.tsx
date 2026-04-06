@@ -407,7 +407,7 @@ export default function Home() {
 
             <div className="space-y-3 pt-2">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-slate-700">검색 개수</label>
+                <label className="text-sm font-medium text-slate-700">최신 뉴스 검색 개수 (최근 1주)</label>
                 <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-md">{articleCount}개</span>
               </div>
               <Slider 
