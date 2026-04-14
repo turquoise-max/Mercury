@@ -87,43 +87,43 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
   const themes = {
     'theme-default': {
       name: '기본 테마',
-      desc: '기본적인 깔끔한 스타일',
-      style: { backgroundColor: '#ffffff', color: '#333333', fontFamily: '"Pretendard", "Noto Sans KR", "Inter", sans-serif' },
+      desc: '가장 깔끔하고 모던한 기본 스타일',
+      style: { backgroundColor: '#ffffff', color: '#1f2937', fontFamily: '"Pretendard", "Noto Sans KR", "Inter", sans-serif' },
     },
     'theme-soft': {
       name: '소프트 테마',
-      desc: '최신 SaaS 블로그처럼 부드럽고 친근한 라운드 스타일',
+      desc: 'SaaS 블로그처럼 부드럽고 친근한 스타일',
       style: { backgroundColor: '#f8fafc', color: '#334155', fontFamily: '"Pretendard", "Noto Sans KR", "Inter", sans-serif' },
     },
     'theme-pro': {
       name: '프로페셔널 테마',
-      desc: '고급 비즈니스/VC 뉴스레터처럼 정갈하고 신뢰감 있는 스타일',
+      desc: '비즈니스/VC 뉴스레터의 신뢰감 있는 스타일',
       style: { backgroundColor: '#ffffff', color: '#0f172a', fontFamily: '"Playfair Display", "Noto Serif KR", serif' },
     },
     'theme-neopop': {
       name: '네오 팝',
-      desc: '발랄하고 톡톡 튀는 트렌디한 스타일',
+      desc: '발랄하고 톡톡 튀는 트렌디한 브루탈리즘',
       style: { backgroundColor: '#ffffff', color: '#000000', fontFamily: '"Space Grotesk", sans-serif' },
     },
     'theme-editorial': {
       name: '에디토리얼',
-      desc: '고급스러운 잡지/신문 스타일',
+      desc: '고급스러운 잡지와 신문의 우아한 스타일',
       style: { backgroundColor: '#fdfbf7', color: '#2c2c2c', fontFamily: '"Playfair Display", "Noto Serif KR", serif' },
     },
     'theme-midnight': {
       name: '미드나잇 다크',
-      desc: '세련된 다크 모드',
+      desc: '눈이 편안하고 세련된 다크 모드',
       style: { backgroundColor: '#0f172a', color: '#e2e8f0', fontFamily: '"Pretendard", "Noto Sans KR", "Inter", sans-serif' },
     },
     'theme-eco': {
       name: '에코 네이처',
-      desc: '편안하고 자연 친화적인 스타일',
-      style: { backgroundColor: '#f8faf6', color: '#3f6212', fontFamily: '"Pretendard", "Noto Sans KR", "Inter", sans-serif' },
+      desc: '따뜻하고 자연 친화적인 그리너리 스타일',
+      style: { backgroundColor: '#f9f9f6', color: '#2f3e2e', fontFamily: '"Pretendard", "Noto Sans KR", "Inter", sans-serif' },
     },
     'theme-cyberpunk': {
       name: '사이버펑크',
-      desc: '해커/개발자 감성의 힙한 스타일',
-      style: { backgroundColor: '#121212', color: '#00ff00', fontFamily: '"JetBrains Mono", "Roboto Mono", monospace' },
+      desc: '해커/개발자 감성의 레트로 퓨처리즘',
+      style: { backgroundColor: '#0a0a0a', color: '#00ff41', fontFamily: '"JetBrains Mono", "Roboto Mono", monospace' },
     }
   };
 
@@ -214,81 +214,130 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
 
   const getFullHtml = () => {
     if (!editor) return "";
-    const editorContent = editor.getHTML();
+    let editorContent = editor.getHTML();
     
-    // 테마별 공통 및 개별 CSS (이메일 클라이언트 호환성 보장)
-    const baseCss = `
-      .prose p { margin-top: 1.2em; margin-bottom: 1.2em; }
-      .prose h1 { margin-top: 2em; margin-bottom: 1em; line-height: 1.3; font-weight: bold; }
-      .prose h2 { margin-top: 1.8em; margin-bottom: 0.8em; line-height: 1.4; font-weight: bold; }
-      .prose h3 { margin-top: 1.5em; margin-bottom: 0.6em; line-height: 1.5; font-weight: bold; }
-      .prose ul, .prose ol { margin-top: 1em; margin-bottom: 1em; padding-left: 24px; }
-      .prose li { margin-top: 0.5em; margin-bottom: 0.5em; }
-      .prose blockquote { margin-top: 1.5em; margin-bottom: 1.5em; }
-    `;
-
-    let themeCss = '';
-    if (selectedTheme === 'theme-soft') {
-      themeCss = `
-        .prose h2 { background-color: #eef2ff; color: #312e81; padding: 10px 24px; border-radius: 9999px; display: inline-block; font-weight: bold; box-shadow: 0 4px 14px 0 rgba(0,0,0,0.05); }
-        .prose blockquote { background-color: #ffffff; color: #334155; border: none; padding: 20px 24px; border-radius: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.01); font-style: normal; }
-        .prose hr { border: 0; border-top: 2px solid #f1f5f9; margin: 40px 0; }
-      `;
-    } else if (selectedTheme === 'theme-pro') {
-      themeCss = `
-        .prose h2 { color: #0f172a; letter-spacing: 0.05em; border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; }
-        .prose h3 { color: #0f172a; border-left: 1px solid #0f172a; padding-left: 16px; font-weight: 600; letter-spacing: 0.02em; }
-        .prose blockquote { background-color: transparent; border-left: 1px solid #94a3b8; padding: 16px 24px; color: #475569; font-style: italic; }
-        .prose hr { border: 0; border-top: 1px solid #e2e8f0; margin: 40px 0; }
-      `;
-    } else if (selectedTheme === 'theme-neopop') {
-      themeCss = `
-        .prose h1 { border: 3px solid #000; background-color: #ff00ff; color: #fff; padding: 16px 24px; box-shadow: 6px 6px 0px #000; font-weight: 900; }
-        .prose h2 { border: 3px solid #000; background-color: #ffff00; color: #000; padding: 12px 20px; box-shadow: 5px 5px 0px #000; font-weight: 800; }
-        .prose h3 { color: #000; text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: #00ffff; font-weight: bold; text-underline-offset: 4px; }
-        .prose blockquote { border: 3px solid #000; background-color: #00ffff; color: #000; padding: 24px; font-weight: bold; box-shadow: 6px 6px 0px #000; font-style: normal; }
-        .prose hr { border: 3px solid #000; margin: 40px 0; }
-        .prose a { color: #ff0000; font-weight: bold; text-decoration: none; border-bottom: 3px solid #000; }
-      `;
-    } else if (selectedTheme === 'theme-editorial') {
-      themeCss = `
-        .prose h1 { font-size: 2.8em; text-align: center; border-bottom: 1px solid #1a1a1a; padding-bottom: 16px; color: #1a1a1a; font-weight: normal; }
-        .prose h2 { text-align: center; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; padding: 16px 0; color: #2c2c2c; font-weight: normal; text-transform: uppercase; letter-spacing: 0.1em; }
-        .prose h3 { color: #3a3a3a; font-style: italic; font-weight: normal; }
-        .prose blockquote { border-left: 1px solid #333; padding: 8px 0 8px 24px; margin: 24px 0; font-style: italic; color: #4a4a4a; font-size: 1.15em; background: transparent; }
-        .prose hr { border: 0; border-top: 1px solid #ccc; margin: 40px 0; }
-        .prose a { color: #1a1a1a; text-decoration: underline; text-underline-offset: 4px; }
-      `;
-    } else if (selectedTheme === 'theme-midnight') {
-      themeCss = `
-        .prose h1 { color: #fff; border-bottom: 2px solid #38bdf8; padding-bottom: 12px; font-weight: 800; }
-        .prose h2 { color: #f1f5f9; border-left: 4px solid #f472b6; padding-left: 16px; font-weight: 700; }
-        .prose h3 { color: #cbd5e1; text-decoration: underline; text-decoration-color: #38bdf8; text-underline-offset: 4px; }
-        .prose blockquote { background-color: #1e293b; border-left: 4px solid #38bdf8; padding: 16px 20px; color: #94a3b8; font-style: italic; }
-        .prose hr { border: 0; border-top: 1px solid #334155; margin: 40px 0; }
-        .prose a { color: #38bdf8; text-decoration: none; border-bottom: 1px dashed #38bdf8; }
-      `;
-    } else if (selectedTheme === 'theme-eco') {
-      themeCss = `
-        .prose h1 { color: #14532d; border-bottom: 2px solid #86efac; padding-bottom: 12px; font-weight: 800; }
-        .prose h2 { color: #166534; background-color: #dcfce7; padding: 12px 20px; border-radius: 12px; font-weight: 700; }
-        .prose h3 { color: #15803d; font-weight: 600; }
-        .prose blockquote { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; padding: 24px; color: #166534; font-style: italic; }
-        .prose hr { border: 0; border-top: 2px dashed #bbf7d0; margin: 40px 0; }
-        .prose a { color: #16a34a; text-decoration: underline; text-decoration-color: #86efac; text-underline-offset: 4px; }
-      `;
-    } else if (selectedTheme === 'theme-cyberpunk') {
-      themeCss = `
-        .prose h1 { color: #ff00ff; text-transform: uppercase; border-bottom: 2px dashed #ff00ff; padding-bottom: 12px; font-weight: 900; }
-        .prose h2 { color: #00ffff; border-left: 4px solid #00ffff; padding-left: 16px; background-color: rgba(26, 26, 26, 0.8); font-weight: 800; }
-        .prose h3 { color: #ffff00; font-weight: 700; }
-        .prose blockquote { background-color: #000; border: 1px solid #00ff00; color: #00ff00; padding: 16px 20px; border-left: 4px solid #ff00ff; font-style: normal; }
-        .prose hr { border: 0; border-top: 1px dashed #00ff00; margin: 40px 0; }
-        .prose a { color: #ffff00; text-decoration: none; border-bottom: 1px solid #ffff00; }
-      `;
-    }
-
     const currentTheme = themes[selectedTheme as keyof typeof themes] || themes['theme-default'];
+
+    // Convert raw HTML to inline styles using DOMParser
+    if (typeof window !== 'undefined') {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(editorContent, 'text/html');
+      
+      const baseStyles: Record<string, string> = {
+        p: `margin-top: 1.2em; margin-bottom: 1.2em; line-height: 1.75; font-size: 18px; color: ${currentTheme.style.color};`,
+        h1: `margin-top: 1.5em; margin-bottom: 0.8em; line-height: 1.2; font-weight: 800; font-size: 2.25em; color: ${currentTheme.style.color};`,
+        h2: `margin-top: 1.5em; margin-bottom: 0.8em; line-height: 1.3; font-weight: 700; font-size: 1.75em; color: ${currentTheme.style.color};`,
+        h3: `margin-top: 1.5em; margin-bottom: 0.6em; line-height: 1.4; font-weight: 600; font-size: 1.25em; color: ${currentTheme.style.color};`,
+        ul: `margin-top: 1em; margin-bottom: 1em; padding-left: 1.5em; font-size: 18px; color: ${currentTheme.style.color};`,
+        ol: `margin-top: 1em; margin-bottom: 1em; padding-left: 1.5em; font-size: 18px; color: ${currentTheme.style.color};`,
+        li: `margin-top: 0.5em; margin-bottom: 0.5em; line-height: 1.75; font-size: 18px; color: ${currentTheme.style.color};`,
+        blockquote: 'margin-top: 1.5em; margin-bottom: 1.5em; font-size: 18px;',
+        img: 'max-width: 100%; height: auto; border-radius: 8px; margin: 1.5em 0;',
+        a: `text-decoration: underline; text-underline-offset: 4px; color: ${currentTheme.style.color};`,
+        hr: 'border: 0; border-top: 1px solid #e5e7eb; margin: 2em 0;'
+      };
+
+      const themeStyles: Record<string, Record<string, string>> = {
+        'theme-default': {
+          h1: 'color: #111827; letter-spacing: -0.02em;',
+          h2: 'color: #1f2937; letter-spacing: -0.01em; border-bottom: 2px solid #f3f4f6; padding-bottom: 0.3em;',
+          h3: 'color: #374151;',
+          blockquote: 'border-left: 4px solid #e5e7eb; padding-left: 1em; color: #6b7280; font-style: italic;',
+          a: 'color: #2563eb; text-decoration-color: #93c5fd;',
+          hr: 'border-top: 1px solid #e5e7eb;'
+        },
+        'theme-soft': {
+          h1: 'color: #1e293b; text-align: center; margin-bottom: 1.2em;',
+          h2: 'background-color: #e0e7ff; color: #3730a3; padding: 0.4em 0.8em; border-radius: 12px; display: inline-block; font-size: 1.5em;',
+          h3: 'color: #4338ca;',
+          blockquote: 'background-color: #ffffff; color: #475569; padding: 1.5em; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; font-style: normal;',
+          a: 'color: #6366f1; text-decoration: none; border-bottom: 2px solid #c7d2fe; font-weight: 500;',
+          img: 'max-width: 100%; height: auto; border-radius: 16px; margin: 1.5em 0; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);',
+          hr: 'border-top: 2px dashed #cbd5e1;'
+        },
+        'theme-pro': {
+          h1: 'color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #0f172a; padding-bottom: 0.5em; text-align: center;',
+          h2: 'color: #1e293b; border-left: 3px solid #334155; padding-left: 0.8em; letter-spacing: 0.02em;',
+          h3: 'color: #334155; font-weight: 600;',
+          blockquote: 'border-left: 2px solid #cbd5e1; padding-left: 1.5em; color: #475569; font-size: 1.1em; font-style: italic;',
+          a: 'color: #0f172a; text-decoration: underline; text-decoration-thickness: 1px;',
+          hr: 'border-top: 1px solid #cbd5e1;'
+        },
+        'theme-neopop': {
+          h1: 'border: 4px solid #000; background-color: #ff00ff; color: #fff; padding: 0.5em 0.8em; box-shadow: 6px 6px 0px #000; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;',
+          h2: 'border: 3px solid #000; background-color: #ffff00; color: #000; padding: 0.4em 0.8em; box-shadow: 4px 4px 0px #000; font-weight: 800; display: inline-block;',
+          h3: 'color: #000; background-color: #00ffff; padding: 0.2em 0.4em; border: 2px solid #000; font-weight: bold;',
+          blockquote: 'border: 4px solid #000; background-color: #fff; color: #000; padding: 1.5em; font-weight: bold; box-shadow: 6px 6px 0px #000; font-size: 1.1em; font-style: normal;',
+          a: 'color: #ff0000; font-weight: 800; text-decoration: none; border-bottom: 4px solid #000; background-color: #ffff00; padding: 0 0.2em;',
+          img: 'max-width: 100%; height: auto; border: 4px solid #000; border-radius: 0; box-shadow: 6px 6px 0px #000; margin: 1.5em 0;',
+          hr: 'border-top: 4px solid #000;'
+        },
+        'theme-editorial': {
+          h1: 'font-size: 2.8em; text-align: center; border-bottom: 1px solid #2c2c2c; padding-bottom: 0.4em; color: #1a1a1a; font-weight: 400; font-style: italic;',
+          h2: 'text-align: center; border-top: 1px solid #e5e5e5; border-bottom: 1px solid #e5e5e5; padding: 0.6em 0; color: #2c2c2c; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; font-size: 1.2em;',
+          h3: 'color: #3a3a3a; font-weight: 600; letter-spacing: 0.05em;',
+          blockquote: 'border: none; border-top: 1px solid #2c2c2c; border-bottom: 1px solid #2c2c2c; padding: 1.5em 0; margin: 2em 0; font-style: italic; color: #4a4a4a; font-size: 1.2em; text-align: center;',
+          a: 'color: #1a1a1a; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px;',
+          img: 'max-width: 100%; height: auto; border-radius: 0; margin: 2em 0; filter: sepia(0.1);',
+          p: 'margin-top: 1.5em; margin-bottom: 1.5em; line-height: 1.8; text-align: justify;',
+          hr: 'border-top: 1px solid #1a1a1a; width: 30%; margin: 3em auto;'
+        },
+        'theme-midnight': {
+          h1: 'color: #f8fafc; font-weight: 800; letter-spacing: -0.02em; border-bottom: 1px solid #334155; padding-bottom: 0.5em;',
+          h2: 'color: #38bdf8; font-weight: 700; letter-spacing: -0.01em;',
+          h3: 'color: #a78bfa; font-weight: 600;',
+          blockquote: 'background-color: #1e293b; border-left: 4px solid #38bdf8; padding: 1.2em 1.5em; color: #94a3b8; font-style: italic; border-radius: 0 8px 8px 0;',
+          a: 'color: #38bdf8; text-decoration: none; border-bottom: 1px solid #38bdf8; transition: all 0.2s;',
+          hr: 'border-top: 1px solid #334155;',
+          img: 'max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #334155; opacity: 0.9;'
+        },
+        'theme-eco': {
+          h1: 'color: #166534; font-weight: 800; text-align: center; margin-bottom: 1em;',
+          h2: 'color: #15803d; border-bottom: 2px dashed #bbf7d0; padding-bottom: 0.3em;',
+          h3: 'color: #166534; font-weight: 600;',
+          blockquote: 'background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 1.5em; color: #166534; font-style: italic; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);',
+          a: 'color: #15803d; text-decoration: none; border-bottom: 2px solid #86efac; font-weight: 500;',
+          hr: 'border-top: 2px dotted #86efac; width: 50%; margin: 2.5em auto;',
+          img: 'max-width: 100%; height: auto; border-radius: 12px; border: 4px solid #f0fdf4;'
+        },
+        'theme-cyberpunk': {
+          h1: 'color: #ff00ff; text-transform: uppercase; border-bottom: 2px dashed #00ff41; padding-bottom: 0.4em; font-weight: 900; text-shadow: 2px 2px 0px #000, -1px -1px 0px #000;',
+          h2: 'color: #00ffff; border-left: 4px solid #ff00ff; padding-left: 0.5em; background-color: rgba(255, 0, 255, 0.1); font-weight: 800; text-transform: uppercase;',
+          h3: 'color: #ffff00; font-weight: 700; letter-spacing: 0.05em;',
+          blockquote: 'background-color: #0a0a0a; border: 1px solid #00ff41; color: #00ff41; padding: 1.2em 1.5em; border-left: 4px solid #ff00ff; font-style: normal; font-family: monospace;',
+          a: 'color: #ffff00; text-decoration: none; border-bottom: 1px dashed #ffff00;',
+          hr: 'border-top: 1px dashed #00ff41;',
+          p: 'text-shadow: 0 0 1px #00ff41;',
+          img: 'max-width: 100%; height: auto; border: 1px solid #00ff41; border-radius: 0; filter: contrast(1.2) saturate(1.5);'
+        }
+      };
+
+      const currentThemeStyles = themeStyles[selectedTheme] || {};
+
+      const applyStyles = (element: Element) => {
+        const tagName = element.tagName.toLowerCase();
+        
+        let styleStr = element.getAttribute('style') || '';
+        if (styleStr && !styleStr.endsWith(';')) styleStr += '; ';
+        else if (styleStr) styleStr += ' ';
+
+        if (baseStyles[tagName]) {
+          styleStr += baseStyles[tagName] + ' ';
+        }
+        if (currentThemeStyles[tagName]) {
+          styleStr += currentThemeStyles[tagName] + ' ';
+        }
+
+        if (styleStr.trim()) {
+          element.setAttribute('style', styleStr.trim());
+        }
+
+        Array.from(element.children).forEach(applyStyles);
+      };
+
+      Array.from(doc.body.children).forEach(applyStyles);
+      editorContent = doc.body.innerHTML;
+    }
 
     return `<!DOCTYPE html>
 <html lang="ko">
@@ -299,26 +348,24 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
-    
-    body { 
-      font-family: ${currentTheme.style.fontFamily}, sans-serif; 
-      line-height: 1.75; 
-      color: ${currentTheme.style.color}; 
-      background-color: ${currentTheme.style.backgroundColor};
-      max-width: 800px; 
-      margin: 0 auto; 
-      padding: 20px; 
-    }
-    img { max-width: 100%; height: auto; }
-    .prose { max-width: none; }
-    ${baseCss}
-    ${themeCss}
   </style>
 </head>
-<body>
-  <div class="prose ${selectedTheme}">
-    ${editorContent}
-  </div>
+<body style="margin: 0; padding: 0; background-color: ${currentTheme.style.backgroundColor}; font-family: ${currentTheme.style.fontFamily}, sans-serif; font-size: 18px; line-height: 1.75; color: ${currentTheme.style.color};">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${currentTheme.style.backgroundColor}" style="background-color: ${currentTheme.style.backgroundColor}; width: 100%; text-align: center;">
+    <tr>
+      <td align="center" valign="top">
+        <table border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${currentTheme.style.backgroundColor}" style="background-color: ${currentTheme.style.backgroundColor}; max-width: 800px; width: 100%; margin: 0 auto; text-align: left;">
+          <tr>
+            <td style="padding: 20px; font-size: 18px; font-family: ${currentTheme.style.fontFamily}, sans-serif; color: ${currentTheme.style.color};">
+              <div>
+                ${editorContent}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
   };

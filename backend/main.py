@@ -17,6 +17,8 @@ import base64
 from dotenv import load_dotenv
 from crawl4ai import AsyncWebCrawler
 from google import genai
+from litellm import acompletion
+from litellm.exceptions import AuthenticationError, RateLimitError
 
 # 환경 변수 로드 (.env 파일에서 GEMINI_API_KEY 등 로드)
 load_dotenv()
@@ -142,41 +144,34 @@ async def crawl_articles(topic: str, count: int) -> list:
     return results
 
 async def call_gemini_with_retry(prompt: str, max_retries: int = 3, initial_delay: int = 2, is_json: bool = False, response_schema: Optional[Type[BaseModel]] = None) -> str:
-    client = genai.Client()
+    # LiteLLM에 전달할 매개변수 세팅
+    # 모델명 앞에 프로바이더(gemini/)를 명시합니다. 추후 "gpt-4o" 등으로 쉽게 변경 가능합니다.
+    kwargs = {
+        "model": "gemini/gemini-3-flash-preview", 
+        "messages": [{"role": "user", "content": prompt}],
+    }
     
-    config = {}
     if is_json:
-        config['response_mime_type'] = 'application/json'
-    if response_schema:
-        config['response_schema'] = response_schema
+        # JSON 모드 강제
+        kwargs["response_format"] = {"type": "json_object"}
         
     for attempt in range(max_retries):
         try:
-            print(f"Gemini API 호출 시도 {attempt + 1}/{max_retries}...")
-            # genai.Client는 기본적으로 timeout 설정이 명시적이지 않으나 
-            # 호출 자체가 실패할 경우 Exception을 던지므로 여기서 잡습니다.
-            # 동기 네트워크 호출을 이벤트 루프에서 분리하기 위해 to_thread 사용
-            response = await asyncio.to_thread(
-                client.models.generate_content,
-                model='gemini-2.5-flash',
-                contents=prompt,
-                config=config if config else None
-            )
-            return response.text
+            print(f"LLM API 호출 시도 {attempt + 1}/{max_retries}...")
+            # acompletion은 기본적으로 비동기 함수입니다.
+            response = await acompletion(**kwargs)
+            return response.choices[0].message.content
+            
+        except AuthenticationError as e:
+             raise HTTPException(status_code=401, detail="API 키가 유효하지 않거나 만료되었습니다.")
         except Exception as e:
-            error_msg = str(e).lower()
-            if "api key" in error_msg or "unauthorized" in error_msg:
-                # API 키 오류는 재시도해도 의미가 없으므로 바로 예외 발생
-                raise HTTPException(status_code=401, detail="Gemini API 키가 유효하지 않거나 만료되었습니다.")
-            
-            print(f"Gemini API 호출 실패 (시도 {attempt + 1}/{max_retries}): {e}")
+            print(f"LLM API 호출 실패 (시도 {attempt + 1}/{max_retries}): {e}")
             if attempt == max_retries - 1:
-                raise HTTPException(status_code=500, detail=f"Gemini API 호출에 실패했습니다 (최대 재시도 초과): {e}")
+                raise HTTPException(status_code=500, detail=f"LLM API 호출에 실패했습니다 (최대 재시도 초과): {e}")
             
-            # exponential backoff - time.sleep 대신 asyncio.sleep 사용
             await asyncio.sleep(initial_delay * (2 ** attempt))
             
-    raise HTTPException(status_code=500, detail="Gemini API 호출에 실패했습니다.")
+    raise HTTPException(status_code=500, detail="LLM API 호출에 실패했습니다.")
 
 async def generate_newsletter_with_gemini(topic: str, main_news: list, ai_tools: list, deep_finds: list, interesting_ai: list, sponsor_text: Optional[str] = None, prompt_of_the_day: Optional[str] = None) -> str:
     print("Gemini API로 뉴스레터 생성 중...")
@@ -328,17 +323,19 @@ async def generate_newsletter(request: GenerateRequest):
     return {"html": html_content}
 
 async def stream_gemini_response(prompt: str) -> AsyncGenerator[str, None]:
-    client = genai.Client()
     try:
-        response_stream = client.models.generate_content_stream(
-            model='gemini-2.5-flash',
-            contents=prompt,
+        response_stream = await acompletion(
+            model="gemini/gemini-3-flash-preview",
+            messages=[{"role": "user", "content": prompt}],
+            stream=True
         )
-        for chunk in response_stream:
-            if chunk.text:
-                yield chunk.text
+        async for chunk in response_stream:
+            # LiteLLM 스트림 청크에서 텍스트 추출
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
     except Exception as e:
-        print(f"Gemini streaming error: {e}")
+        print(f"LLM streaming error: {e}")
         yield f"<chat>처리 중 오류가 발생했습니다: {str(e)}</chat>"
 
 @app.post("/api/chat/stream")
