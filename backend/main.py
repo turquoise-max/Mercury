@@ -77,7 +77,10 @@ async def crawl_articles(topic: str, count: int) -> list:
     try:
         # 1. Bing 뉴스 RSS URL (다이렉트 원문 링크 제공, 암호화 없음)
         encoded_topic = urllib.parse.quote(topic)
-        rss_url = f"https://www.bing.com/news/search?q={encoded_topic}&format=rss&mkt=ko-KR"
+
+        # Bing 뉴스 검색은 국가별로 결과가 다를 수 있으므로, 필요에 따라 mkt 파라미터를 조정할 수 있습니다. (예: en-US, ko-KR)
+        rss_url = f"https://www.bing.com/news/search?q={encoded_topic}&format=rss&mkt=en-US"
+        # rss_url = f"https://www.bing.com/news/search?q={encoded_topic}&format=rss&mkt=ko-KR"
         
         ssl_context = ssl._create_unverified_context()
         req = urllib.request.Request(
@@ -144,23 +147,38 @@ async def crawl_articles(topic: str, count: int) -> list:
     return results
 
 async def call_gemini_with_retry(prompt: str, max_retries: int = 3, initial_delay: int = 2, is_json: bool = False, response_schema: Optional[Type[BaseModel]] = None) -> str:
-    # LiteLLM에 전달할 매개변수 세팅
-    # 모델명 앞에 프로바이더(gemini/)를 명시합니다. 추후 "gpt-4o" 등으로 쉽게 변경 가능합니다.
+    
+    base_url = os.getenv("LITELLM_BASE_URL", "https://litellm.must.codes")
+    model_name = "gemini/gemini-2.5-pro"
+    
     kwargs = {
-        "model": "gemini/gemini-3-flash-preview", 
+        "model": model_name, 
         "messages": [{"role": "user", "content": prompt}],
     }
     
-    if is_json:
-        # JSON 모드 강제
-        kwargs["response_format"] = {"type": "json_object"}
+    if base_url:
+        kwargs["api_base"] = base_url
+        kwargs["api_key"] = os.getenv("LITELLM_API_KEY", "")
+        kwargs["custom_llm_provider"] = "openai"
+        
+    # 프록시 서버 500 에러 방지를 위해 강제 response_format 옵션 제거
+    # 대신 아래에서 정규식을 통해 백틱(```json)을 직접 제거합니다.
         
     for attempt in range(max_retries):
         try:
             print(f"LLM API 호출 시도 {attempt + 1}/{max_retries}...")
-            # acompletion은 기본적으로 비동기 함수입니다.
             response = await acompletion(**kwargs)
-            return response.choices[0].message.content
+            result_text = response.choices[0].message.content
+            
+            # 2. JSON 파싱 에러 방지를 위한 마크다운 백틱 수동 제거 로직
+            if is_json and result_text:
+                result_text = result_text.strip()
+                result_text = re.sub(r'^```json\s*', '', result_text, flags=re.IGNORECASE)
+                result_text = re.sub(r'^```\s*', '', result_text)
+                result_text = re.sub(r'\s*```$', '', result_text)
+                result_text = result_text.strip()
+                
+            return result_text
             
         except AuthenticationError as e:
              raise HTTPException(status_code=401, detail="API 키가 유효하지 않거나 만료되었습니다.")
@@ -323,14 +341,23 @@ async def generate_newsletter(request: GenerateRequest):
     return {"html": html_content}
 
 async def stream_gemini_response(prompt: str) -> AsyncGenerator[str, None]:
+    base_url = os.getenv("LITELLM_BASE_URL", "https://litellm.must.codes")
+    model_name = "gemini/gemini-2.5-pro"
+    
+    kwargs = {
+        "model": model_name,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": True
+    }
+    
+    if base_url:
+        kwargs["api_base"] = base_url
+        kwargs["api_key"] = os.getenv("LITELLM_API_KEY", "")
+        kwargs["custom_llm_provider"] = "openai"
+        
     try:
-        response_stream = await acompletion(
-            model="gemini/gemini-3-flash-preview",
-            messages=[{"role": "user", "content": prompt}],
-            stream=True
-        )
+        response_stream = await acompletion(**kwargs)
         async for chunk in response_stream:
-            # LiteLLM 스트림 청크에서 텍스트 추출
             content = chunk.choices[0].delta.content
             if content:
                 yield content

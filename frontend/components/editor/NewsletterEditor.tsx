@@ -124,6 +124,11 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
       name: '사이버펑크',
       desc: '해커/개발자 감성의 레트로 퓨처리즘',
       style: { backgroundColor: '#0a0a0a', color: '#00ff41', fontFamily: '"JetBrains Mono", "Roboto Mono", monospace' },
+    },
+    'theme-mercury': {
+      name: '머큐리 시그니처',
+      desc: '수은처럼 매끄럽고 몽환적인 우주의 빛',
+      style: { backgroundColor: '#020205', backgroundImage: 'linear-gradient(to bottom, #0b0f19, #020205)', color: '#e4e4e7', fontFamily: '"Pretendard", "Noto Sans KR", "Inter", sans-serif' },
     }
   };
 
@@ -309,6 +314,15 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
           hr: 'border-top: 1px dashed #00ff41;',
           p: 'text-shadow: 0 0 1px #00ff41;',
           img: 'max-width: 100%; height: auto; border: 1px solid #00ff41; border-radius: 0; filter: contrast(1.2) saturate(1.5);'
+        },
+        'theme-mercury': {
+          h1: 'color: #00e5ff; font-weight: 800; letter-spacing: -0.01em; border-bottom: 1px solid rgba(0, 229, 255, 0.2); padding-bottom: 0.5em; text-align: center; text-shadow: 0 0 8px rgba(0, 229, 255, 0.2);',
+          h2: 'color: #e4e4e7; font-weight: 700; border-left: 4px solid #3b82f6; padding-left: 0.8em;',
+          h3: 'color: #93c5fd; font-weight: 600;',
+          blockquote: 'background-color: rgba(0, 229, 255, 0.05); border-left: 4px solid #00e5ff; padding: 1.5em; color: #e4e4e7; font-style: normal; border-radius: 0 12px 12px 0; line-height: 1.8;',
+          a: 'color: #00e5ff; text-decoration: none; border-bottom: 1px solid rgba(0, 229, 255, 0.4); transition: border-color 0.2s;',
+          hr: 'border-top: 0; height: 1px; background: linear-gradient(to right, transparent, rgba(0, 229, 255, 0.6), transparent); margin: 3em 0;',
+          img: 'max-width: 100%; height: auto; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);'
         }
       };
 
@@ -350,11 +364,11 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
   </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: ${currentTheme.style.backgroundColor}; font-family: ${currentTheme.style.fontFamily}, sans-serif; font-size: 18px; line-height: 1.75; color: ${currentTheme.style.color};">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${currentTheme.style.backgroundColor}" style="background-color: ${currentTheme.style.backgroundColor}; width: 100%; text-align: center;">
+<body style="margin: 0; padding: 0; background-color: ${currentTheme.style.backgroundColor}; ${'backgroundImage' in currentTheme.style ? `background-image: ${(currentTheme.style as any).backgroundImage};` : ''} font-family: ${currentTheme.style.fontFamily}, sans-serif; font-size: 18px; line-height: 1.75; color: ${currentTheme.style.color}; min-height: 100vh;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${currentTheme.style.backgroundColor}" style="background-color: ${currentTheme.style.backgroundColor}; ${'backgroundImage' in currentTheme.style ? `background-image: ${(currentTheme.style as any).backgroundImage};` : ''} width: 100%; text-align: center;">
     <tr>
       <td align="center" valign="top">
-        <table border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${currentTheme.style.backgroundColor}" style="background-color: ${currentTheme.style.backgroundColor}; max-width: 800px; width: 100%; margin: 0 auto; text-align: left;">
+        <table border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="transparent" style="background-color: transparent; max-width: 800px; width: 100%; margin: 0 auto; text-align: left;">
           <tr>
             <td style="padding: 20px; font-size: 18px; font-family: ${currentTheme.style.fontFamily}, sans-serif; color: ${currentTheme.style.color};">
               <div>
@@ -649,9 +663,11 @@ export const NewsletterEditor = forwardRef<NewsletterEditorRef, NewsletterEditor
                       className={`w-full max-w-[800px] mx-auto shadow-sm rounded-lg h-fit ${selectedTheme}`}
                       style={{
                         backgroundColor: themes[selectedTheme as keyof typeof themes]?.style.backgroundColor || '#ffffff',
+                        backgroundImage: (themes[selectedTheme as keyof typeof themes]?.style as any)?.backgroundImage || 'none',
                         color: themes[selectedTheme as keyof typeof themes]?.style.color || '#333333',
                         fontFamily: themes[selectedTheme as keyof typeof themes]?.style.fontFamily || 'sans-serif',
                         padding: '40px',
+                        minHeight: '100%',
                       }}
                       dangerouslySetInnerHTML={{ __html: `<div class="prose max-w-none ${selectedTheme}">${editor.getHTML()}</div>` }}
                     />
